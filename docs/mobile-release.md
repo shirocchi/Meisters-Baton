@@ -1,6 +1,6 @@
 # モバイル版を配布するまで
 
-更新: 2026-09-07。iOS / Android の実アプリ用プロジェクトを同梱したベータ基盤です。標準のネイティブプロジェクト生成、権限・アイコン・ビルド経路の設定と、実機での検証は別の工程です。Windows の作業環境では Android SDK と Xcode を使ったコンパイル、実機試験、署名・ストア申請を実施していません。
+更新: 2026-09-07。iOS / Android の実アプリ用プロジェクトを同梱したベータ基盤です。標準のネイティブプロジェクト生成、権限・アイコン・ビルド経路の設定と、実機での検証は別の工程です。GitHub CIでAndroid debug APKとiOSシミュレーター用アプリのコンパイルが成功しました。実機試験、ストア用署名、申請は未実施です。[対象コミットと成果物](verification.md#githubでの実行結果と成果物)を記録しています。
 
 ## 同梱する構成
 
@@ -52,9 +52,9 @@ xcodebuild -project ios/App/App.xcodeproj -scheme App \
 
 ## GitHub Actions
 
-`Application checks` は push / pull request で型検査、ドメイン/APIテスト、Webビルド、設定の事前点検、Chromium E2Eを実行します。失敗時はブラウザー試験の成果物を7日間保持します。
+`Application checks` は push / pull request で型検査、ドメイン/APIテスト、Webビルド、設定の事前点検、Chromium E2E、本番オフライン試験、Dockerの起動と永続化試験を実行します。失敗時はブラウザー試験の成果物を7日間保持します。
 
-`Native beta builds` は `main` への初回pushを含め、アプリ本体・ネイティブ設定・素材・ビルドスクリプト・依存関係・当該workflowが変更されたpushで、AndroidとiOSを両方ビルドします。文書だけの変更では起動しません。Actions 画面から `android` / `ios` / `both` を選んだ手動実行も可能です。Androidはdebug APK、iOSは署名なしのシミュレーターアプリZIPを14日間保持します。実際の成功ログができるまでは「ネイティブビルド検証済み」と扱わないでください。どちらのworkflowもストアへ送信しません。
+`Native beta builds` は `main` への初回pushを含め、アプリ本体・ネイティブ設定・素材・ビルドスクリプト・依存関係・当該workflowが変更されたpushで、AndroidとiOSを両方ビルドします。文書だけの変更では起動しません。Actions 画面から `android` / `ios` / `both` を選んだ手動実行も可能です。Androidはdebug APK、iOSは署名なしのシミュレーターアプリZIPを14日間保持します。2026-09-07の初回ビルドは両方成功しました。実機で使えることの確認とストア提出用署名は別の工程です。どちらのworkflowもストアへ送信しません。
 
 iOS CIは `macos-15` の Xcode 26.3 を明示しています。既定のXcodeが必要版より古いことがあるためです。ランナー更新で削除された場合は、[GitHub公式のインストール済みソフトウェア一覧](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md)を確認して `DEVELOPER_DIR` を更新します。
 
