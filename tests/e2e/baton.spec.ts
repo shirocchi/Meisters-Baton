@@ -25,6 +25,8 @@ test('mobile: a new expert answer becomes reviewed searchable knowledge and surv
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: '工房の記録', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '作業を記録', exact: true })).toBeVisible();
+  await expect(page.getByText('その手の「なぜ」を、')).toHaveCount(0);
   await page.getByRole('button', { name: '今日の作業を残す' }).click();
   await page.getByLabel(/作業の名前/).fill('試験用治具の引き継ぎ');
   await page.getByLabel(/作業メモ/).fill('青い印を確認する工程。練習用のテスト記録です。');

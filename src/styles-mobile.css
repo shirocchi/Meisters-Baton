@@ -1,16 +1,13 @@
 /* Responsive overrides are imported by the main stylesheet and use higher specificity where needed. */
 @media (min-width: 1700px) {
   body .workbench {
-    min-height: 350px;
+    min-height: 230px;
   }
   body .workbench-copy {
-    padding: 37px 43px;
+    padding: 36px 43px;
   }
   body .workbench h2 {
-    font-size: 37px;
-  }
-  body .workbench p {
-    font-size: 13px;
+    font-size: 30px;
   }
   body .tile-image {
     height: 190px;
@@ -45,7 +42,7 @@
     padding-left: 28px;
   }
   body .workbench h2 {
-    font-size: 27px;
+    font-size: 24px;
   }
   body .work-stats > p {
     font-size: 11px;
@@ -291,42 +288,22 @@
   }
   body .workbench {
     border-radius: 12px;
-    min-height: 296px;
+    min-height: 176px;
   }
   body .workbench-copy {
-    padding: 25px 23px 23px;
-  }
-  body .workbench-kicker {
-    font-size: 11px;
+    padding: 23px;
   }
   body .workbench h2 {
-    font-size: 24px;
+    font-size: 20px;
     letter-spacing: 0;
-    line-height: 1.8;
-    margin: 11px 0 9px;
-  }
-  body .workbench p {
-    font-size: 11px;
+    line-height: 1.4;
+    margin: 0 0 17px;
   }
   body .workbench .button {
-    margin-top: 17px;
-    min-width: 205px;
-    font-size: 11px;
+    margin-top: 0;
+    min-width: 190px;
+    font-size: 12px;
     padding: 11px 13px;
-  }
-  body .workbench-flow {
-    font-size: 11px;
-    gap: 9px;
-    margin-top: 20px;
-  }
-  body .workbench-flow span {
-    gap: 5px;
-  }
-  body .workbench-flow i {
-    width: 16px;
-  }
-  body .workbench-flow svg {
-    width: 13px;
   }
   body .baton-art {
     left: 60%;
@@ -365,9 +342,6 @@
   }
   body .art-joint svg {
     width: 17px;
-  }
-  body .art-label {
-    display: none;
   }
   body .work-stats {
     grid-template-columns: repeat(3, 1fr);
@@ -1005,7 +979,7 @@
     padding-right: 19px;
   }
   body .workbench h2 {
-    font-size: 22px;
+    font-size: 19px;
   }
   body .baton-art {
     left: 69%;

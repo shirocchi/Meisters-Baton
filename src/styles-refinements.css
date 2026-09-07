@@ -33,15 +33,6 @@ fieldset {
 .tile-body > div > span {
   font-size: 11px;
 }
-.workbench p {
-  font-size: 13px;
-}
-.workbench-kicker {
-  font-size: 12px;
-}
-.workbench-flow {
-  font-size: 12px;
-}
 .workbench .button {
   font-size: 13px;
 }
@@ -268,15 +259,6 @@ fieldset {
   min-height: 44px;
 }
 @media (max-width: 760px) {
-  body .workbench-kicker {
-    font-size: 11px;
-  }
-  body .workbench p {
-    font-size: 12px;
-  }
-  body .workbench-flow {
-    font-size: 11px;
-  }
   body .workbench .button {
     font-size: 12px;
   }

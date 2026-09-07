@@ -532,7 +532,7 @@ main {
   color: #a3453b;
 }
 .workbench {
-  min-height: 300px;
+  min-height: 210px;
   border-radius: 16px;
   background: var(--green);
   color: white;
@@ -541,40 +541,24 @@ main {
   overflow: hidden;
 }
 .workbench-copy {
-  padding: 30px 38px 27px;
+  padding: 32px 38px;
   position: relative;
   z-index: 2;
   flex-shrink: 0;
-}
-.workbench-kicker {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #b9d3c5;
-  font-size: 11px;
-}
-.baton-mark {
-  height: 11px;
-  width: 3px;
-  border-radius: 4px;
-  background: #e6bc63;
-  transform: rotate(35deg);
-  display: inline-block;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
 }
 .workbench h2 {
-  font-size: 31px;
-  line-height: 1.65;
-  letter-spacing: 0.025em;
+  font-size: 26px;
+  line-height: 1.35;
+  letter-spacing: 0;
   font-weight: 600;
-  margin: 12px 0 8px;
-}
-.workbench p {
-  font-size: 11px;
-  color: #c0d8cc;
-  line-height: 1.95;
+  margin: 0 0 20px;
 }
 .workbench .button {
-  margin-top: 20px;
+  margin-top: 0;
   padding: 12px 17px;
   min-width: 222px;
   justify-content: space-between;
@@ -582,25 +566,6 @@ main {
 }
 .workbench .button svg:last-child {
   margin-left: 10px;
-}
-.workbench-flow {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  color: #a6c5b4;
-  margin-top: 22px;
-  font-size: 11px;
-}
-.workbench-flow span {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-}
-.workbench-flow i {
-  display: block;
-  width: 25px;
-  height: 1px;
-  background: #739385;
 }
 .baton-art {
   position: absolute;
@@ -664,15 +629,6 @@ main {
   color: #dce9df;
   transform: translate(-50%, -50%);
   box-shadow: 0 4px 30px #193e3540;
-}
-.art-label {
-  position: absolute;
-  right: 35px;
-  bottom: 29px;
-  font-size: 11px;
-  text-align: right;
-  line-height: 1.85;
-  color: #b8d2c2;
 }
 .work-stats {
   display: grid;

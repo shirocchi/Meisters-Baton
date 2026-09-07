@@ -3,7 +3,6 @@ import {
   ArrowUpRight,
   AudioLines,
   BookOpen,
-  Camera,
   ChevronRight,
   CircleHelp,
   Clock3,
@@ -56,52 +55,18 @@ function HomePage() {
       </div>
       <section className="workbench">
         <div className="workbench-copy">
-          <div className="workbench-kicker">
-            <span className="baton-mark" />
-            <span>受け継ぐのは、手順のその先。</span>
-          </div>
-          <h2>
-            その手の「なぜ」を、
-            <br />
-            次のつくり手へ。
-          </h2>
-          <p>
-            作業を撮って、少し話す。
-            <br />
-            映像に映らない判断まで、工房の知識に。
-          </p>
+          <h2>作業を記録</h2>
           <button className="button light" onClick={() => navigate('capture')}>
             <Plus size={20} />
             今日の作業を残す
             <ArrowUpRight size={19} />
           </button>
-          <div className="workbench-flow">
-            <span>
-              <Camera size={15} />
-              撮る
-            </span>
-            <i />
-            <span>
-              <AudioLines size={15} />
-              話す
-            </span>
-            <i />
-            <span>
-              <BookOpen size={15} />
-              渡す
-            </span>
-          </div>
         </div>
         <div className="baton-art" aria-hidden="true">
           <div className="orbit orbit-one" />
           <div className="orbit orbit-two" />
           <div className="baton-rod rod-one" />
           <div className="baton-rod rod-two" />
-          <span className="art-label">
-            一人の経験が、
-            <br />
-            みんなの技術になる。
-          </span>
           <div className="art-joint">
             <Leaf size={23} />
           </div>
