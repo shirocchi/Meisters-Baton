@@ -541,7 +541,9 @@ export function createApp(options: AppOptions = {}) {
       throw new ApiError(404, '動画が見つかりません。', 'MEDIA_NOT_FOUND');
     res.type(media.mime);
     res.setHeader('Content-Disposition', `inline; filename="${media.id}"`);
-    res.sendFile(join(mediaDir, media.path), { cacheControl: false, lastModified: false });
+    // Resolve the validated UUID inside the private root. The root itself may be
+    // a dot-directory (.data); Express must not treat it as the requested file.
+    res.sendFile(media.path, { root: mediaDir, cacheControl: false, lastModified: false });
   });
   app.delete('/api/media/:id', (req, res) => {
     const mediaId = parse(z.string().uuid(), req.params.id);

@@ -508,6 +508,39 @@ describe('authenticated, durable team API', () => {
 });
 
 describe('private media', () => {
+  it('serves media from a hidden data directory before and after restarting', async () => {
+    const parent = mkdtempSync(join(tmpdir(), 'baton-hidden-media-'));
+    directories.push(parent);
+    const dataDir = join(parent, '.data');
+    const instance = server({ dataDir });
+    const owner = await register(instance);
+    const uploaded = await request(instance.app)
+      .post('/api/media')
+      .set('Authorization', bearer(owner))
+      .attach('file', png, { filename: 'test.png', contentType: 'image/png' });
+    expect(uploaded.status).toBe(201);
+    const path = `/api/media/${uploaded.body.id}`;
+    const before = await request(instance.app).get(path).set('Authorization', bearer(owner));
+    expect(before.status).toBe(200);
+    expect(before.body).toEqual(png);
+    instance.close();
+    const reopened = server({ dataDir });
+    const after = await request(reopened.app).get(path).set('Authorization', bearer(owner));
+    expect(after.status).toBe(200);
+    expect(after.body).toEqual(png);
+    expect((await request(reopened.app).get(path)).status).toBe(401);
+    const stranger = await register(reopened, 'hidden-stranger@example.com');
+    expect(
+      (await request(reopened.app).get(path).set('Authorization', bearer(stranger))).status,
+    ).toBe(404);
+    const partial = await request(reopened.app)
+      .get(path)
+      .set('Authorization', bearer(owner))
+      .set('Range', 'bytes=0-7');
+    expect(partial.status).toBe(206);
+    expect(partial.body).toEqual(png.subarray(0, 8));
+  });
+
   it('checks file signatures, supports team-only download and cleans unused media', async () => {
     const instance = server();
     const owner = await register(instance);
