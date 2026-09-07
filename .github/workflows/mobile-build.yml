@@ -1,0 +1,96 @@
+name: Native beta builds
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'ios/**'
+      - 'src/**'
+      - 'public/**'
+      - 'resources/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.ts'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/mobile-build.yml'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Build Android debug APK, unsigned iOS simulator app, or both
+        required: true
+        type: choice
+        default: android
+        options: [android, ios, both]
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    if: github.event_name == 'push' || inputs.platform == 'android' || inputs.platform == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+      - name: Install the SDK used by Capacitor 8
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+      - run: node scripts/mobile-preflight.mjs
+      - name: Compile an installable debug APK
+        run: bash android/gradlew --project-dir android --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meisters-baton-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    if: github.event_name == 'push' || inputs.platform == 'ios' || inputs.platform == 'both'
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+          cache: npm
+      - name: Verify the selected native toolchain
+        run: xcodebuild -version
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync ios
+      - run: node scripts/mobile-preflight.mjs
+      - name: Compile for the simulator without store signing
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App
+          -configuration Debug -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath ios/DerivedData
+          CODE_SIGNING_ALLOWED=NO build
+      - name: Keep the simulator build
+        run: ditto -c -k --sequesterRsrc --keepParent ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app meisters-baton-ios-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meisters-baton-ios-simulator
+          path: meisters-baton-ios-simulator.zip
+          if-no-files-found: error
+          retention-days: 14

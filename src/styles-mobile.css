@@ -1,0 +1,1057 @@
+/* Responsive overrides are imported by the main stylesheet and use higher specificity where needed. */
+@media (min-width: 1700px) {
+  body .workbench {
+    min-height: 350px;
+  }
+  body .workbench-copy {
+    padding: 37px 43px;
+  }
+  body .workbench h2 {
+    font-size: 37px;
+  }
+  body .workbench p {
+    font-size: 13px;
+  }
+  body .tile-image {
+    height: 190px;
+  }
+}
+@media (max-width: 1250px) {
+  body .sidebar {
+    width: 205px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  body .sidebar nav button.active:before {
+    left: -18px;
+  }
+  body .main-wrap {
+    margin-left: 205px;
+  }
+  body .topbar {
+    padding: 0 28px;
+  }
+  body main {
+    padding: 30px 28px 55px;
+  }
+  body .home-columns {
+    grid-template-columns: minmax(0, 1fr) 215px;
+    gap: 22px;
+  }
+  body .home-aside {
+    padding-left: 20px;
+  }
+  body .workbench-copy {
+    padding-left: 28px;
+  }
+  body .workbench h2 {
+    font-size: 27px;
+  }
+  body .work-stats > p {
+    font-size: 11px;
+    padding-left: 17px;
+  }
+  body .capture-layout {
+    grid-template-columns: minmax(0, 1fr) 230px;
+    gap: 23px;
+  }
+  body .form-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  body .form-footer .button {
+    width: 100%;
+  }
+  body .capture-aside .paper-note {
+    padding: 24px 20px;
+  }
+  body .paper-note h2 {
+    font-size: 17px;
+  }
+  body .article-layout {
+    grid-template-columns: minmax(0, 1fr) 225px;
+    gap: 22px;
+  }
+  body .review-panel {
+    padding: 20px 17px;
+  }
+  body .claim-card {
+    padding: 21px 20px 13px;
+  }
+  body .claim-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  body .claim-footer > div {
+    justify-content: space-between;
+    width: 100%;
+  }
+  body .interview-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
+    gap: 20px;
+  }
+  body .interview-panel {
+    padding: 22px;
+  }
+  body .ask-layout {
+    gap: 25px;
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+  body .ask-aside {
+    padding-left: 21px;
+  }
+  body .settings-layout {
+    grid-template-columns: minmax(0, 1fr) 225px;
+    gap: 22px;
+  }
+  body .toast {
+    left: calc(50% + 102px);
+  }
+}
+@media (max-width: 1050px) {
+  body .home-columns {
+    grid-template-columns: 1fr;
+  }
+  body .home-aside {
+    border-left: 0;
+    padding-left: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  body .home-aside .question-note {
+    margin: 0;
+  }
+  body .sample-note {
+    grid-column: 1/-1;
+    margin: 0;
+  }
+  body .capture-layout {
+    grid-template-columns: 1fr;
+  }
+  body .capture-aside {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  body .capture-aside .paper-note {
+    grid-row: span 2;
+  }
+  body .demo-link {
+    margin-top: 0;
+  }
+  body .privacy-hint {
+    margin: 0 5px;
+  }
+  body .interview-layout {
+    grid-template-columns: 1fr;
+  }
+  body .evidence-workspace {
+    max-width: none;
+  }
+  body .evidence-workspace .video-player {
+    max-height: 320px;
+  }
+  body .segment-list {
+    padding: 16px;
+  }
+  body .segment-list button {
+    padding: 10px 8px;
+  }
+  body .evidence-workspace .sample-player {
+    max-height: 320px;
+  }
+  body .evidence-workspace .sample-player .craft-illustration {
+    max-height: 320px;
+  }
+  body .article-layout {
+    grid-template-columns: 1fr;
+  }
+  body .article-aside {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  body .source-card {
+    margin-top: 0;
+  }
+  body .article-aside > .danger-text {
+    grid-column: 1/-1;
+  }
+  body .ask-layout {
+    grid-template-columns: 1fr;
+  }
+  body .ask-aside {
+    border-left: 0;
+    border-top: 1px solid #dce7d3;
+    padding: 23px 0 0;
+  }
+  body .settings-layout {
+    grid-template-columns: 1fr;
+  }
+  body .settings-aside {
+    position: static;
+  }
+  body .privacy-card ul {
+    display: block;
+  }
+  body .wiki-thumb {
+    width: 112px;
+    height: 95px;
+  }
+  body .wiki-row-main {
+    gap: 15px;
+  }
+  body .wiki-row {
+    padding: 15px;
+  }
+  body .wiki-row h2 {
+    font-size: 14px;
+  }
+}
+@media (max-width: 760px) {
+  body {
+    font-size: 14px;
+  }
+  body .sidebar {
+    display: none;
+  }
+  body .main-wrap {
+    margin-left: 0;
+  }
+  body .topbar {
+    height: calc(65px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 22px 0;
+    position: relative;
+  }
+  body .breadcrumb {
+    display: none;
+  }
+  body .mobile-brand {
+    display: block;
+    padding: 0;
+    text-align: left;
+  }
+  body .logo.small {
+    gap: 8px;
+    font-size: 11px;
+    line-height: 1.1;
+  }
+  body .logo.small img {
+    width: 32px;
+    height: 32px;
+  }
+  body .logo.small strong {
+    font-size: 21px;
+    margin-top: 1px;
+  }
+  body .topbar-right {
+    gap: 10px;
+  }
+  body .topbar-right > .icon-button {
+    display: inline-flex;
+    width: 35px;
+    height: 38px;
+  }
+  body .topbar-right .badge {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  body main {
+    padding: 27px 21px calc(105px + env(safe-area-inset-bottom));
+    max-width: 650px;
+  }
+  body .page-title {
+    margin-bottom: 21px;
+    gap: 8px;
+  }
+  body h1 {
+    font-size: 24px;
+  }
+  body .page-title > div:first-of-type > p {
+    font-size: 11px;
+    margin-bottom: 3px;
+  }
+  body .local-save {
+    font-size: 11px;
+    gap: 4px;
+  }
+  body .page-title .title-actions {
+    gap: 5px;
+  }
+  body .page-title .button {
+    font-size: 11px;
+    padding: 10px 12px;
+    gap: 5px;
+  }
+  body .page-title > .back {
+    width: 33px;
+    margin-left: -9px;
+  }
+  body .workbench {
+    border-radius: 12px;
+    min-height: 296px;
+  }
+  body .workbench-copy {
+    padding: 25px 23px 23px;
+  }
+  body .workbench-kicker {
+    font-size: 11px;
+  }
+  body .workbench h2 {
+    font-size: 24px;
+    letter-spacing: 0;
+    line-height: 1.8;
+    margin: 11px 0 9px;
+  }
+  body .workbench p {
+    font-size: 11px;
+  }
+  body .workbench .button {
+    margin-top: 17px;
+    min-width: 205px;
+    font-size: 11px;
+    padding: 11px 13px;
+  }
+  body .workbench-flow {
+    font-size: 11px;
+    gap: 9px;
+    margin-top: 20px;
+  }
+  body .workbench-flow span {
+    gap: 5px;
+  }
+  body .workbench-flow i {
+    width: 16px;
+  }
+  body .workbench-flow svg {
+    width: 13px;
+  }
+  body .baton-art {
+    left: 60%;
+    opacity: 0.55;
+  }
+  body .baton-rod {
+    width: 37px;
+    height: 162px;
+    top: 35%;
+    left: 75%;
+  }
+  body .rod-two {
+    height: 163px;
+    left: 94%;
+    top: 58%;
+  }
+  body .baton-rod:after {
+    inset: 6px;
+  }
+  body .orbit {
+    width: 205px;
+    height: 205px;
+    left: 83%;
+    top: 40%;
+    border-color: #b3d2b53b;
+  }
+  body .orbit-two {
+    width: 290px;
+    height: 290px;
+  }
+  body .art-joint {
+    width: 32px;
+    height: 32px;
+    left: 80%;
+    top: 41%;
+  }
+  body .art-joint svg {
+    width: 17px;
+  }
+  body .art-label {
+    display: none;
+  }
+  body .work-stats {
+    grid-template-columns: repeat(3, 1fr);
+    margin: 22px 0 30px;
+    padding: 0 3px;
+  }
+  body .work-stats > div {
+    padding: 0 17px;
+  }
+  body .work-stats > div:nth-child(3) {
+    border-right: 0;
+  }
+  body .work-stats > div > span {
+    font-size: 11px;
+  }
+  body .work-stats strong {
+    font-size: 26px;
+  }
+  body .work-stats > p {
+    display: none;
+  }
+  body .home-columns {
+    gap: 28px;
+  }
+  body .section-heading {
+    margin-bottom: 15px;
+  }
+  body .section-heading h2 {
+    font-size: 16px;
+  }
+  body .section-heading .text-button {
+    font-size: 11px;
+  }
+  body .article-grid {
+    gap: 12px;
+  }
+  body .tile-image {
+    height: 113px;
+  }
+  body .tile-body {
+    padding: 13px 12px 10px;
+  }
+  body .tile-body h3 {
+    font-size: 12px;
+    margin: 5px 0 6px;
+    line-height: 1.8;
+  }
+  body .tile-body p {
+    font-size: 11px;
+    line-height: 1.9;
+  }
+  body .tile-body > div {
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  body .tile-body > div > span {
+    font-size: 11px;
+  }
+  body .tile-body > div > span svg {
+    display: none;
+  }
+  body .tile-body > div > svg {
+    width: 14px;
+  }
+  body .tile-image > .badge {
+    font-size: 11px;
+    padding: 2px 5px;
+    left: 9px;
+    top: 9px;
+  }
+  body .category {
+    font-size: 11px;
+  }
+  body .article-grid .craft-illustration {
+    width: 210px;
+    max-width: none;
+    transform: translateX(-15px);
+  }
+  body .home-aside {
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+  body .home-aside .section-heading h2 {
+    font-size: 13px;
+  }
+  body .question-note {
+    padding: 19px 15px 12px;
+  }
+  body .question-note h3 {
+    font-size: 11px;
+  }
+  body .question-note p {
+    font-size: 11px;
+  }
+  body .small-empty {
+    padding: 20px 3px;
+  }
+  body .small-empty p {
+    font-size: 11px;
+  }
+  body .sample-note p {
+    font-size: 11px;
+  }
+  body .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    height: calc(70px + env(safe-area-inset-bottom));
+    padding: 7px 12px calc(6px + env(safe-area-inset-bottom));
+    background: #ffffffed;
+    backdrop-filter: blur(15px);
+    border-top: 1px solid #dfe7da;
+    z-index: 50;
+  }
+  body .bottom-nav button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border-radius: 9px;
+    color: #586252;
+    font-size: 11px;
+    position: relative;
+  }
+  body .bottom-nav button.active {
+    color: var(--green);
+    font-weight: 700;
+  }
+  body .bottom-nav button.active:before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    height: 3px;
+    width: 24px;
+    background: var(--green);
+    border-radius: 0 0 4px 4px;
+  }
+  body .bottom-nav button.active svg {
+    stroke-width: 2.3;
+  }
+  body .toast {
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    left: 50%;
+    width: max-content;
+    max-width: calc(100% - 36px);
+    font-size: 11px;
+    padding: 12px 17px;
+  }
+  body .progress-steps {
+    margin-bottom: 23px;
+  }
+  body .progress-steps li {
+    font-size: 11px;
+    gap: 7px;
+  }
+  body .progress-steps li:after {
+    margin: 0 9px;
+  }
+  body .progress-steps li > span {
+    width: 23px;
+    height: 23px;
+    font-size: 11px;
+  }
+  body .capture-layout {
+    gap: 23px;
+  }
+  body .upload-zone {
+    margin: 14px;
+    padding: 28px 14px 20px;
+  }
+  body .upload-zone h2 {
+    font-size: 16px;
+  }
+  body .upload-zone p {
+    font-size: 11px;
+  }
+  body .upload-zone > small {
+    font-size: 11px;
+  }
+  body .upload-zone .button-row {
+    gap: 9px;
+  }
+  body .upload-zone .button {
+    font-size: 11px;
+    padding: 10px 13px;
+    gap: 7px;
+  }
+  body .form-body {
+    padding: 4px 20px 22px;
+  }
+  body .form-two {
+    gap: 12px;
+    margin: 19px 0;
+  }
+  body label {
+    font-size: 12px;
+  }
+  body input,
+  body textarea,
+  body select {
+    font-size: 16px;
+    padding: 12px;
+  }
+  body .form-two input,
+  body .form-two select {
+    font-size: 14px;
+  }
+  body .optional {
+    display: block;
+    margin: 3px 0 0;
+    font-size: 11px;
+  }
+  body .capture-aside {
+    grid-template-columns: 1fr;
+  }
+  body .capture-aside .paper-note {
+    display: none;
+  }
+  body .demo-link {
+    padding: 17px;
+  }
+  body .privacy-hint {
+    font-size: 11px;
+    margin: 0 7px;
+  }
+  body .interview-panel {
+    padding: 21px 19px;
+  }
+  body .interview-top h2 {
+    font-size: 13px;
+  }
+  body .interview-top p {
+    font-size: 11px;
+  }
+  body .question-card {
+    padding: 19px 17px 13px;
+  }
+  body .question-card h3 {
+    font-size: 17px;
+  }
+  body .answer-label textarea {
+    font-size: 16px;
+    line-height: 1.85;
+  }
+  body .answer-helper {
+    font-size: 11px;
+  }
+  body .interview-actions .button {
+    font-size: 11px;
+  }
+  body .video-caption {
+    font-size: 11px;
+    gap: 14px;
+  }
+  body .segment-list {
+    padding: 15px;
+  }
+  body .sample-player > span {
+    font-size: 11px;
+  }
+  body .library-tools {
+    gap: 10px;
+    align-items: stretch;
+  }
+  body .search-field {
+    padding: 0 12px;
+    gap: 8px;
+    min-width: 0;
+  }
+  body .search-field input {
+    font-size: 14px;
+    min-width: 0;
+  }
+  body .filter-select {
+    gap: 0;
+  }
+  body .filter-select > svg {
+    display: none;
+  }
+  body .filter-select select {
+    font-size: 11px;
+    width: 85px;
+    min-width: 0;
+    padding: 10px 5px;
+  }
+  body .tabs {
+    gap: 18px;
+    margin-bottom: 19px;
+  }
+  body .tabs button {
+    font-size: 11px;
+    min-height: 44px;
+  }
+  body .wiki-row {
+    padding: 13px;
+  }
+  body .wiki-row-main {
+    gap: 13px;
+    align-items: flex-start;
+  }
+  body .wiki-thumb {
+    width: 82px;
+    height: 83px;
+  }
+  body .wiki-thumb > .craft-illustration {
+    width: 157px;
+    transform: translateX(-37px);
+  }
+  body .wiki-row h2 {
+    font-size: 12px;
+    line-height: 1.75;
+    margin: 4px 0;
+  }
+  body .inline-meta {
+    gap: 6px;
+  }
+  body .inline-meta .badge {
+    font-size: 11px;
+    padding: 2px 4px;
+  }
+  body .wiki-row-copy > p {
+    font-size: 11px;
+    -webkit-line-clamp: 1;
+    line-height: 1.8;
+  }
+  body .wiki-meta {
+    font-size: 11px;
+    gap: 10px;
+    margin-top: 9px;
+    flex-wrap: wrap;
+  }
+  body .wiki-meta > span:first-child {
+    display: none;
+  }
+  body .wiki-row .bookmark {
+    margin-left: 3px;
+    width: 26px;
+    height: 32px;
+  }
+  body .wiki-row .bookmark svg {
+    width: 16px;
+  }
+  body .recording-list {
+    grid-template-columns: 1fr;
+  }
+  body .recording-list > button {
+    padding: 14px;
+    min-height: 67px;
+  }
+  body .recording-list strong {
+    font-size: 11px;
+  }
+  body .article-layout {
+    gap: 25px;
+  }
+  body .article-summary {
+    font-size: 12px;
+    margin-bottom: 22px;
+  }
+  body .article-detail-meta {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  body .article-detail-meta > span:not(.badge) {
+    font-size: 11px;
+  }
+  body .article-layout .tabs {
+    gap: 23px;
+  }
+  body .article-layout .tabs button {
+    font-size: 11px;
+  }
+  body .claim-card {
+    padding: 20px 18px 14px;
+  }
+  body .claim-card h2 {
+    font-size: 16px;
+    line-height: 1.85;
+  }
+  body .claim-body {
+    font-size: 13px;
+    line-height: 2.05;
+  }
+  body .claim-top {
+    gap: 8px;
+  }
+  body .claim-number {
+    font-size: 20px;
+  }
+  body .claim-kind {
+    font-size: 11px;
+  }
+  body .claim-top .badge {
+    font-size: 11px;
+  }
+  body .claim-evidence button,
+  body .result-evidence button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  body .claim-footer {
+    padding-top: 12px;
+    gap: 9px;
+  }
+  body .claim-footer > span {
+    font-size: 11px;
+  }
+  body .confirm-button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  body .claim-footer .text-button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  body .article-aside {
+    grid-template-columns: 1fr;
+  }
+  body .review-panel {
+    padding: 23px;
+  }
+  body .review-panel .button {
+    font-size: 12px;
+  }
+  body .source-card {
+    padding: 18px;
+  }
+  body .source-card .sample-player {
+    max-height: 190px;
+  }
+  body .source-card .sample-player > svg {
+    height: 190px;
+  }
+  body .source-card .text-button {
+    font-size: 11px;
+    min-height: 44px;
+  }
+  body .article-aside > .danger-text {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  body .ask-intro {
+    padding: 5px 0 22px;
+  }
+  body .ask-intro h2 {
+    font-size: 22px;
+  }
+  body .ask-intro p {
+    font-size: 11px;
+  }
+  body .ask-symbol {
+    width: 47px;
+    height: 47px;
+    border-radius: 14px;
+    margin-bottom: 17px;
+  }
+  body .ask-input {
+    padding: 17px 15px;
+  }
+  body .ask-input textarea {
+    font-size: 16px;
+    line-height: 1.85;
+  }
+  body .ask-input > div > span {
+    font-size: 11px;
+  }
+  body .ask-input .button {
+    font-size: 11px;
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+  body .suggested-questions > button {
+    font-size: 11px;
+    min-height: 44px;
+  }
+  body .ask-aside {
+    margin-top: 9px;
+  }
+  body .ask-aside > p {
+    font-size: 11px;
+  }
+  body .request-card h3 {
+    font-size: 12px;
+  }
+  body .request-card .text-button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  body .search-response .section-heading h2 {
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  body .answer-card {
+    padding: 20px;
+  }
+  body .answer-card p {
+    font-size: 14px;
+  }
+  body .search-results > article {
+    padding: 20px 18px;
+  }
+  body .result-title h3 {
+    font-size: 14px;
+  }
+  body .search-results article > p {
+    font-size: 12px;
+  }
+  body .empty {
+    padding: 34px 20px;
+  }
+  body .empty h3 {
+    font-size: 15px;
+  }
+  body .empty p {
+    font-size: 11px;
+  }
+  body .empty .button {
+    font-size: 11px;
+  }
+  body .modal {
+    padding: 20px;
+    width: calc(100vw - 28px);
+    max-height: calc(92dvh - env(safe-area-inset-bottom));
+    border-radius: 13px;
+  }
+  body .modal.wide {
+    width: calc(100vw - 28px);
+  }
+  body .modal-head {
+    margin-bottom: 14px;
+  }
+  body .modal-head h2 {
+    font-size: 17px;
+  }
+  body .modal-body {
+    gap: 18px;
+  }
+  body .modal-body p {
+    font-size: 12px;
+  }
+  body .evidence-modal-body blockquote {
+    padding: 18px;
+    font-size: 14px;
+    margin: 14px 0;
+  }
+  body .source-question {
+    font-size: 11px;
+  }
+  body .evidence-modal-body .video-player {
+    max-height: 240px;
+  }
+  body .settings-layout {
+    gap: 23px;
+  }
+  body .settings-section {
+    padding: 22px 19px;
+  }
+  body .settings-section p {
+    font-size: 11px;
+  }
+  body .settings-section label {
+    font-size: 12px;
+  }
+  body .settings-heading h2 {
+    font-size: 15px;
+  }
+  body .settings-heading {
+    gap: 9px;
+  }
+  body .settings-section .form-two {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  body .settings-section .button-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  body .settings-section .button {
+    font-size: 11px;
+  }
+  body .setting-row p {
+    font-size: 11px;
+  }
+  body .setting-row input[type='checkbox'],
+  body .consent-setting input[type='checkbox'] {
+    width: 21px;
+    height: 21px;
+  }
+  body .privacy-card p {
+    font-size: 11px;
+  }
+  body .privacy-card ul {
+    font-size: 11px;
+  }
+  body .connected-team {
+    padding: 15px;
+    gap: 9px;
+  }
+  body .connected-team > div {
+    min-width: 0;
+  }
+  body .connected-team strong {
+    overflow-wrap: anywhere;
+  }
+  body .settings-details summary {
+    min-height: 44px;
+  }
+  body .sync-panel .button-row .button {
+    flex: 1;
+  }
+  body .auth-mode button {
+    min-height: 44px;
+  }
+  body .offline-banner {
+    font-size: 11px;
+  }
+}
+@media (max-width: 365px) {
+  body main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  body .topbar {
+    padding-left: 17px;
+    padding-right: 17px;
+  }
+  body .workbench-copy {
+    padding-left: 19px;
+    padding-right: 19px;
+  }
+  body .workbench h2 {
+    font-size: 22px;
+  }
+  body .baton-art {
+    left: 69%;
+    opacity: 0.4;
+  }
+  body .local-save {
+    display: none;
+  }
+  body .article-grid {
+    gap: 9px;
+  }
+  body .tile-body {
+    padding: 11px 10px;
+  }
+  body .tile-body h3 {
+    font-size: 11px;
+  }
+  body .work-stats > div {
+    padding: 0 12px;
+  }
+  body .work-stats > div > span {
+    font-size: 11px;
+  }
+  body .home-aside {
+    grid-template-columns: 1fr;
+  }
+  body .tabs {
+    gap: 14px;
+  }
+  body .page-title .button {
+    padding: 10px;
+    font-size: 11px;
+  }
+  body .interview-panel {
+    padding: 18px 16px;
+  }
+  body .claim-card {
+    padding: 19px 16px;
+  }
+  body .claim-kind {
+    font-size: 11px;
+  }
+  body .ask-input > div > span {
+    display: none;
+  }
+  body .ask-input > div {
+    justify-content: flex-end;
+  }
+}

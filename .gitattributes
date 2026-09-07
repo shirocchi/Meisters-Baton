@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jar binary
+# Preserve upstream license text, including original whitespace.
+docs/third-party-notices.txt -whitespace
+public/third-party-notices.txt -whitespace
+docs/licenses/*.txt -whitespace

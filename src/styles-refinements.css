@@ -1,0 +1,465 @@
+/* Reading and form refinements verified against the working screens. */
+.record-details {
+  margin-top: 16px;
+  border-top: 1px solid #dbe4de;
+}
+.record-details > summary {
+  cursor: pointer;
+  padding: 18px 0;
+  min-height: 48px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #174c43;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.tile-body h3 {
+  font-size: 16px;
+}
+.tile-body p {
+  font-size: 12px;
+}
+.tile-image {
+  background: #dae8e2;
+}
+.tile-image .craft-illustration {
+  width: 100%;
+  height: 100%;
+}
+.tile-body > div > span {
+  font-size: 11px;
+}
+.workbench p {
+  font-size: 13px;
+}
+.workbench-kicker {
+  font-size: 12px;
+}
+.workbench-flow {
+  font-size: 12px;
+}
+.workbench .button {
+  font-size: 13px;
+}
+.category {
+  font-size: 11px;
+}
+.work-stats > div > span {
+  font-size: 12px;
+}
+.work-stats small {
+  font-size: 11px;
+}
+.work-stats > p {
+  font-size: 12px;
+}
+.question-note p {
+  font-size: 12px;
+}
+.question-note h3 {
+  font-size: 14px;
+}
+.small-empty p {
+  font-size: 12px;
+}
+.home-aside .section-heading h2 {
+  font-size: 16px;
+}
+.sample-note p {
+  font-size: 11px;
+}
+.form-body > label {
+  font-size: 14px;
+}
+.form-two > label {
+  font-size: 13px;
+}
+.upload-zone p {
+  font-size: 13px;
+}
+.paper-note p {
+  font-size: 13px;
+}
+.paper-note li {
+  font-size: 12px;
+}
+.interview-top p {
+  font-size: 12px;
+}
+.analysis-start p {
+  font-size: 13px;
+}
+.interview-mode > span:last-child {
+  font-size: 12px;
+}
+.interview-top h2 {
+  font-size: 16px;
+}
+.question-card p {
+  font-size: 12px;
+}
+.answer-helper {
+  font-size: 11px;
+}
+.segment-list p {
+  font-size: 12px;
+}
+.segment-list strong {
+  font-size: 14px;
+}
+.record-note p {
+  font-size: 13px;
+}
+.draft-action h3 {
+  font-size: 14px;
+}
+.draft-action p {
+  font-size: 12px;
+}
+.interview-actions .text-button {
+  min-height: 44px;
+}
+.question-pips button {
+  width: 44px;
+  height: 44px;
+}
+.timestamp {
+  min-height: 44px;
+}
+.claim-card h2 {
+  font-size: 18px;
+}
+.claim-body {
+  font-size: 14px;
+}
+.claim-footer > span {
+  font-size: 11px;
+}
+.claim-footer .text-button,
+.confirm-button {
+  min-height: 44px;
+}
+.claim-kind {
+  font-size: 12px;
+}
+.review-panel p {
+  font-size: 12px;
+}
+.review-panel h2 {
+  font-size: 16px;
+}
+.article-summary {
+  font-size: 14px;
+}
+.wiki-row-copy > p {
+  font-size: 12px;
+}
+.wiki-meta {
+  font-size: 11px;
+}
+.recording-list strong {
+  font-size: 13px;
+}
+.recording-list small {
+  font-size: 11px;
+}
+.ask-intro p {
+  font-size: 13px;
+}
+.search-results article > p {
+  font-size: 13px;
+}
+.suggested-questions > button {
+  min-height: 44px;
+}
+.settings-section p {
+  font-size: 13px;
+}
+.settings-heading p {
+  font-size: 12px;
+}
+.settings-section label {
+  font-size: 13px;
+}
+.settings-section small,
+.sync-panel small {
+  font-size: 11px;
+  color: #596c4f;
+  line-height: 1.9;
+}
+.settings-danger {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+.settings-danger small {
+  display: block;
+  font-size: 11px;
+  color: #5d6e53;
+}
+.privacy-card small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.9;
+  color: #536843;
+  margin-top: 15px;
+}
+.privacy-card p {
+  font-size: 12px;
+}
+.connected-team > div {
+  flex: 1;
+}
+.connected-team small {
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.team-avatar {
+  width: 38px;
+  height: 38px;
+  background: #d4e5c9;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #41642b;
+}
+.sync-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 15px;
+}
+.connection-status {
+  flex-wrap: wrap;
+}
+.settings-danger .text-button {
+  min-height: 44px;
+  text-align: left;
+  color: #973f37;
+}
+.auth-mode button.active {
+  background: #e6eee2;
+  border: 1px solid #b8ceb0;
+}
+.settings-section .privacy-hint {
+  margin: 17px 0;
+  font-size: 11px;
+}
+.modal-body .subtle {
+  font-size: 12px;
+}
+.source-author {
+  font-size: 12px;
+}
+.source-question {
+  font-size: 13px;
+}
+.recording-list {
+  gap: 12px;
+}
+.source-card .text-button {
+  min-height: 44px;
+}
+@media (max-width: 760px) {
+  body .workbench-kicker {
+    font-size: 11px;
+  }
+  body .workbench p {
+    font-size: 12px;
+  }
+  body .workbench-flow {
+    font-size: 11px;
+  }
+  body .workbench .button {
+    font-size: 12px;
+  }
+  body .work-stats > div > span {
+    font-size: 11px;
+  }
+  body .article-grid {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+  body .article-tile {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+  body .tile-image {
+    height: 100%;
+    min-height: 156px;
+    border-right: 1px solid #e1e7db;
+  }
+  body .article-grid .craft-illustration {
+    width: 250px;
+    height: 100%;
+    transform: translateX(-69px);
+  }
+  body .tile-body {
+    padding: 15px 14px 11px;
+  }
+  body .tile-body h3 {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  body .tile-body p {
+    font-size: 11px;
+  }
+  body .tile-body > div {
+    margin-top: 9px;
+    padding-top: 8px;
+  }
+  body .tile-body > div > span {
+    font-size: 10px;
+  }
+  body .home-aside {
+    grid-template-columns: 1fr;
+  }
+  body .small-empty {
+    flex-direction: row;
+    text-align: left;
+    padding: 15px 4px;
+    gap: 13px;
+  }
+  body .small-empty p {
+    font-size: 12px;
+  }
+  body .question-note {
+    padding: 21px;
+  }
+  body .question-note h3 {
+    font-size: 15px;
+  }
+  body .question-note p {
+    font-size: 12px;
+  }
+  body .question-note > svg {
+    margin-bottom: 8px;
+  }
+  body .question-note .text-button {
+    font-size: 12px;
+    min-height: 44px;
+  }
+  body .sample-note p {
+    font-size: 11px;
+  }
+  body .local-save {
+    font-size: 10px;
+  }
+  body .bottom-nav button {
+    font-size: 11px;
+  }
+  body .form-body > label {
+    font-size: 13px;
+  }
+  body .form-two > label {
+    font-size: 12px;
+  }
+  body .upload-zone p {
+    font-size: 12px;
+  }
+  body .segment-list strong {
+    font-size: 13px;
+  }
+  body .segment-list p {
+    font-size: 12px;
+  }
+  body .interview-top h2 {
+    font-size: 14px;
+  }
+  body .interview-top p {
+    font-size: 11px;
+  }
+  body .question-card p {
+    font-size: 12px;
+  }
+  body .answer-helper {
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+  body .draft-action h3 {
+    font-size: 14px;
+  }
+  body .draft-action p {
+    font-size: 11px;
+  }
+  body .claim-kind {
+    font-size: 11px;
+  }
+  body .claim-body {
+    font-size: 14px;
+  }
+  body .claim-footer > span {
+    font-size: 11px;
+  }
+  body .claim-footer .text-button,
+  body .confirm-button {
+    font-size: 11px;
+  }
+  body .review-panel p {
+    font-size: 12px;
+  }
+  body .article-summary {
+    font-size: 13px;
+  }
+  body .wiki-thumb {
+    width: 82px;
+    height: 100px;
+  }
+  body .wiki-row h2 {
+    font-size: 14px;
+  }
+  body .wiki-row-copy > p {
+    font-size: 11px;
+  }
+  body .wiki-meta {
+    font-size: 10px;
+  }
+  body .wiki-row .bookmark {
+    width: 44px;
+    height: 44px;
+    margin-left: 0;
+  }
+  body .wiki-row-main {
+    gap: 12px;
+  }
+  body .recording-list strong {
+    font-size: 13px;
+  }
+  body .recording-list small {
+    font-size: 11px;
+  }
+  body .ask-intro p {
+    font-size: 12px;
+  }
+  body .search-results article > p {
+    font-size: 13px;
+  }
+  body .settings-section p {
+    font-size: 12px;
+  }
+  body .settings-heading p {
+    font-size: 11px;
+  }
+  body .settings-section label {
+    font-size: 13px;
+  }
+  body .settings-section .privacy-hint {
+    font-size: 11px;
+  }
+  body .connected-team {
+    flex-wrap: wrap;
+  }
+  body .source-question {
+    font-size: 12px;
+  }
+  body .tabs > span {
+    display: none;
+  }
+}

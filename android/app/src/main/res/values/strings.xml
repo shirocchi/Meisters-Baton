@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Meister\'s Baton</string>
+    <string name="title_activity_main">Meister\'s Baton</string>
+    <string name="package_name">jp.meisters.baton</string>
+    <string name="custom_url_scheme">jp.meisters.baton</string>
+</resources>
