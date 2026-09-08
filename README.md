@@ -6,6 +6,8 @@
 
 `0.1.0-beta.1` / 日本語UI / React・TypeScript・Vite / Capacitor iOS・Android / Node.js・SQLite
 
+**公開版:** [https://meisters-baton.vercel.app/](https://meisters-baton.vercel.app/)
+
 ![Meister's Batonのホーム画面。今日の作業を残す操作と、進行中の記録・技術Wikiを表示](docs/screenshots/home.png)
 
 2026年9月6–7日に開発した事前ベータです。[開発祭への開示](docs/pre-event-disclosure.md)と当日の変更履歴を分けて扱います。
@@ -24,7 +26,13 @@
 
 Androidの試用版APKとiOSシミュレーター用ビルドを、[成功したビルドの成果物](https://github.com/kob952/Meisters-Baton/actions/runs/34080700413)から取得できます（保持期限2026-09-21）。iPhone配布用IPA・ストア署名・実機試験はまだ含みません。
 
-## まず動かす
+## 公開版を使う
+
+[Meister's Batonを開く](https://meisters-baton.vercel.app/)。インストールやローカルサーバーの起動は不要です。現在の利用・案内はこの公開URLを正本とし、localhostでの運用は行いません。
+
+最初は架空のサンプルが表示されます。「新しい記録」で動画またはメモを保存し、手動の聞き取りからWikiまで進めます。アカウントやAPIキーなしでも、端末内に保存する基本機能を試せます。
+
+## ローカルで開発する
 
 Node.js **22.13以上**を使います。CIとコンテナの設定は22.23.2に揃えています。Node.js組み込みのSQLiteを使うため、古いNode.jsではAPIを起動できません。
 
@@ -33,7 +41,7 @@ npm ci
 npm run dev
 ```
 
-[http://127.0.0.1:5173](http://127.0.0.1:5173)を開きます。最初は架空のサンプルが表示されます。「新しい記録」で動画またはメモを保存し、手動の聞き取りからWikiまで進めます。アカウントやAPIキーは不要です。
+[http://127.0.0.1:5173](http://127.0.0.1:5173)は開発プレビュー専用です。利用者へ案内するURLには使いません。
 
 共有とAIも使う場合は、別のターミナルでAPIを起動します。最初に `.env.example` を `.env` としてコピーし、必要な値を設定してください。
 
@@ -72,7 +80,7 @@ AIが読むのは動画から抜き出した最大12枚の画像です。動画�
 
 認証・保存・削除・APIの詳細は [server/README.md](server/README.md)、データの取扱いは [docs/privacy.md](docs/privacy.md) を参照してください。
 
-## 本番形式で起動する
+## 本番ビルドを検証する
 
 ```sh
 npm ci
@@ -85,7 +93,7 @@ npm run build
 npm start
 ```
 
-APIと `dist/` の画面を同じサービスで配信します。既定の待受なら [http://127.0.0.1:8787](http://127.0.0.1:8787) です。このURLを使う場合、`ALLOWED_ORIGINS` に `http://127.0.0.1:8787` を含めてください。別サーバーやスマートフォンから使う場合はHTTPSの運用先と正確な許可originを用意します。
+APIと `dist/` の画面を同じサービスで配信します。ローカル検証時の既定の待受は [http://127.0.0.1:8787](http://127.0.0.1:8787) です。このURLは運用先ではありません。公開版は [https://meisters-baton.vercel.app/](https://meisters-baton.vercel.app/) を使い、別環境へ配備する場合はHTTPSの運用先と正確な許可originを用意します。
 
 `npm start` は `tsx` を使用します。現構成では開発依存も実行時に必要なため、`npm ci --omit=dev` は使いません。
 
@@ -99,7 +107,7 @@ docker compose up -d
 docker compose ps
 ```
 
-既定では [http://127.0.0.1:8787](http://127.0.0.1:8787) だけに公開します。画面とAPIは同じコンテナで動き、SQLiteと動画は `baton-data` ボリュームへ保存します。コンテナは非rootで起動し、書き込み先はデータ領域と一時領域に限定します。APIキーは実行時の環境から渡し、イメージに埋め込みません。
+既定ではローカル検証用の [http://127.0.0.1:8787](http://127.0.0.1:8787) だけに公開します。画面とAPIは同じコンテナで動き、SQLiteと動画は `baton-data` ボリュームへ保存します。コンテナは非rootで起動し、書き込み先はデータ領域と一時領域に限定します。APIキーは実行時の環境から渡し、イメージに埋め込みません。
 
 停止は `docker compose down`。**`down --volumes` は共有記録のボリュームも削除するため、通常の停止には使いません。** 外部公開にはHTTPSを終端するリバースプロキシ、アクセス制限、バックアップ・復元の運用が必要です。SQLite版は単一インスタンスで運用します。
 
