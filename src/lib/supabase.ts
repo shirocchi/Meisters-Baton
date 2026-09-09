@@ -179,11 +179,22 @@ export async function uploadTeamMedia(expected: AuthSession, blob: Blob): Promis
   if (blob.size > SUPABASE_MEDIA_LIMIT)
     throw new Error('Supabase無料枠で共有できる動画は1件50MBまでです。');
   const id = `${expected.user.teamId}/${makeId('media')}`;
-  const { error } = await supabase().storage.from(MEDIA_BUCKET).upload(id, blob, {
-    contentType: blob.type,
-    upsert: false,
-  });
-  if (error) throw message(error, '動画を共有できませんでした。');
+  const bytes = await blob.arrayBuffer();
+  if (!bytes.byteLength || bytes.byteLength !== blob.size)
+    throw new Error('動画・画像の読み出しが完了していません。元ファイルを選び直してください。');
+  const { error } = await supabase()
+    .storage.from(MEDIA_BUCKET)
+    .upload(id, bytes, {
+      contentType: blob.type || 'application/octet-stream',
+      upsert: false,
+    });
+  if (error) {
+    if (error.message.includes('No content provided'))
+      throw new Error(
+        '動画・画像の内容を送信できませんでした。元ファイルを端末に残したまま、再試行できます。',
+      );
+    throw message(error, '動画を共有できませんでした。');
+  }
   return id;
 }
 

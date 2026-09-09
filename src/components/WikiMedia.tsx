@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Film, Play, Maximize2 } from 'lucide-react';
 import { Modal } from './ui';
 import { VideoPlayer } from './VideoPlayer';
@@ -14,6 +14,20 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
   const [error, setError] = useState('');
   const [requested, setRequested] = useState(false);
   const [zoom, setZoom] = useState(false);
+  const holder = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setRequested(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '160px' },
+    );
+    if (holder.current) observer.observe(holder.current);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     if (!auth || !requested) return;
     let live = true,
@@ -42,7 +56,7 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
     )
   ) : null;
   return (
-    <span className="ww-shared-media">
+    <span className="ww-shared-media" ref={holder}>
       {content || (
         <button className="button" onClick={() => setRequested(true)}>
           <Film size={18} />
@@ -77,6 +91,58 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
         </Modal>
       )}
     </span>
+  );
+}
+export function InlineRecording({ recording, open }: { recording: Recording; open: () => void }) {
+  const holder = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [time, setTime] = useState(0);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '160px' },
+    );
+    if (holder.current) observer.observe(holder.current);
+    return () => observer.disconnect();
+  }, []);
+  const hasVideo = !!recording.mediaId || !!recording.remoteMediaId;
+  return (
+    <figure className="ww-inline-recording" ref={holder}>
+      {hasVideo &&
+        (visible ? (
+          <VideoPlayer recording={recording} time={time} />
+        ) : (
+          <div className="ww-media-loading">動画</div>
+        ))}
+      {recording.frames.length > 0 && (
+        <div className="ww-inline-frames">
+          {recording.frames.slice(0, hasVideo ? 3 : 6).map((frame) => (
+            <button
+              key={frame.id}
+              onClick={() => (hasVideo ? setTime(frame.time) : open())}
+              aria-label={`${formatTime(frame.time)}の場面`}
+            >
+              <img
+                src={frame.dataUrl}
+                alt={`${recording.title} ${formatTime(frame.time)}`}
+                loading="lazy"
+              />
+              <span>{formatTime(frame.time)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <figcaption>
+        <button className="ww-evidence-link" onClick={open}>
+          元の記録と映像を確認
+        </button>
+      </figcaption>
+    </figure>
   );
 }
 export function RecordingEvidence({

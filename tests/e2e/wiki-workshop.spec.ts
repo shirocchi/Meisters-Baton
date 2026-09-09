@@ -156,6 +156,28 @@ test.describe('editable workshop Wiki', () => {
     await expect(page.locator('.gw-markdown')).not.toContainText('シール端');
     expect(db.edits[0].version).toBe(2);
   });
+  test('one rejected record does not block another record from reaching the Wiki', async ({
+    page,
+  }) => {
+    const db = await editable(page);
+    await page.route('**/rest/v1/rpc/save_wiki_page', (route) => {
+      if (route.request().postDataJSON().p_reason.includes('失敗する記録'))
+        return route.fulfill({ status: 503, json: { message: 'temporary error' } });
+      return route.fallback();
+    });
+    for (const title of ['外皮の真空引き 失敗する記録', '外皮の真空引き 続きの記録']) {
+      await page.goto('/#capture');
+      await page.getByLabel(/作業の名前/).fill(title);
+      await page.getByLabel(/作業メモ/).fill('漏れた位置を記録する。');
+      await page.getByRole('button', { name: '保存して、判断を残す' }).click();
+      await expect(page).not.toHaveURL(/#capture$/);
+    }
+    await expect
+      .poll(() => db.edits[0]?.events[0]?.recording.title, { timeout: 15000 })
+      .toBe('外皮の真空引き 続きの記録');
+    await page.goto('/#library');
+    await expect(page.locator('.ww-pending-row')).toContainText('失敗する記録');
+  });
   test('media browsing and mobile editing keep controls visible', async ({ page }) => {
     await editable(page);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -198,7 +220,6 @@ test.describe('editable workshop Wiki', () => {
     await expect(page.getByRole('textbox', { name: 'Wikiの本文' })).toContainText('#media/');
     await page.getByRole('button', { name: '変更を保存' }).click();
     await expect.poll(() => db.edits[0]?.media.length).toBe(1);
-    await page.getByRole('button', { name: '手元の写真.svgを表示', exact: true }).click();
     await expect(page.getByRole('img', { name: '手元の写真.svg', exact: true })).toBeVisible();
     expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('#media/');
   });
@@ -239,6 +260,8 @@ test.describe('editable workshop Wiki', () => {
       (route) => {
         if (route.request().method() === 'POST') {
           uploads++;
+          expect(route.request().postDataBuffer()).toEqual(Buffer.from(bytes));
+          expect(route.request().headers()['content-type']).toBe('video/webm');
           return route.fulfill({ json: { Key: 'fixture', Id: 'fixture' } });
         }
         return route.fulfill({ contentType: 'video/webm', body: Buffer.from(bytes) });
@@ -255,6 +278,18 @@ test.describe('editable workshop Wiki', () => {
       .toBeTruthy();
     expect(uploads).toBe(1);
     await page.goto('/#library/wiki/skin');
+    await page.locator('.ww-inline-recording').scrollIntoViewIfNeeded();
+    await expect(page.locator('.ww-inline-recording video')).toBeVisible();
+    await expect
+      .poll(() =>
+        page.locator('.ww-inline-recording video').evaluate((v: HTMLVideoElement) => v.readyState),
+      )
+      .toBeGreaterThanOrEqual(1);
+    await page.locator('.ww-inline-recording video').evaluate((v) => {
+      v.setAttribute('data-kept', 'yes');
+      window.scrollTo(0, 0);
+    });
+    await expect(page.locator('.ww-inline-recording video')).toHaveAttribute('data-kept', 'yes');
     await page.getByRole('button', { name: '元の記録と映像を確認' }).click();
     const video = page.getByRole('dialog').locator('video');
     await expect(video).toBeVisible();

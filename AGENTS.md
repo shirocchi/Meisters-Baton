@@ -10,6 +10,7 @@ Mobile application for capturing craft knowledge through recorded work, question
 - Local capture must work without accounts or networking. Do not silently replace user data on sync/import or AI errors.
 - Never ship secrets. OpenAI calls run on the authenticated server only. Validate requests and model outputs.
 - Mobile touch targets at least 44px, keyboard support, reduced-motion support, and safe-area insets.
+- Use concrete labels and necessary instructions. Do not add promotional catchphrases, hero introductions, or decorative summaries to the technical Wiki. Keep the manual before navigation indexes and keep relevant images/video within the article.
 - Run typecheck, domain/API tests, build, and browser end-to-end checks for the primary flow before delivery.
 - Treat the 2026-09-06–07 beta as pre-event work. Preserve an accurate disclosure and do not claim it was built during the September 15 event.
 - No changes to the parent Obsidian vault except explicitly scoped project/session notes. Do not commit private Vault documents.

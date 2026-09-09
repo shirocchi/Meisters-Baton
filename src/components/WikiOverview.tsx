@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowUpRight, Camera, Check, Clock3, Layers, Link2, Play, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Camera, Link2, Play, Sparkles } from 'lucide-react';
 import { useWiki } from '../wikiState';
 import { useBaton } from '../state';
 import { matchRecording } from '../domain/wikiWorkshop';
@@ -97,7 +97,7 @@ export function WikiOverview({
   renderAsset?: (asset: WikiAsset) => ReactNode;
 }) {
   const wiki = useWiki();
-  const { data, navigate } = useBaton();
+  const { data } = useBaton();
   const source = wiki.pages.filter((p) => p.id !== 'home' && !p.id.startsWith('diary-'));
   const visualPages = source
     .map((page) => ({
@@ -114,38 +114,8 @@ export function WikiOverview({
   const recent = [...new Map(events.map((e) => [e.recordingId, e])).values()].slice(0, 6);
   return (
     <section className="ww-overview">
-      <div className="ww-hero">
-        <div>
-          <p className="ww-eyebrow">手順の、その先にある判断まで。</p>
-          <h2>手元を見て、技をつなぐ。</h2>
-          <p>
-            マニュアル、製作日記、新しい作業記録。
-            <br />
-            同じ工程の中で、一緒に確かめられます。
-          </p>
-        </div>
-        <button className="button primary" onClick={() => navigate('capture')}>
-          <Camera size={19} />
-          作業を撮って残す
-        </button>
-      </div>
-      <div className="ww-metrics">
-        <span>
-          <Layers size={17} />
-          {source.filter((p) => !p.unavailable).length}ページの技術資料
-        </span>
-        <span>
-          <Check size={17} />
-          {events.length}件の記録を本文へ反映
-        </span>
-        <span>
-          <Clock3 size={17} />
-          変更は履歴から戻せます
-        </span>
-      </div>
       <div className="ww-section-heading">
         <h3>工程から探す</h3>
-        <span>知りたい作業へ、まっすぐ。</span>
       </div>
       <div className="ww-stage-grid">
         {stages.map(([number, title, description, pattern]) => {
@@ -178,7 +148,6 @@ export function WikiOverview({
         <>
           <div className="ww-section-heading">
             <h3>写真から、工程へ</h3>
-            <span>細部を拡大して、元の手順へ戻れます。</span>
           </div>
           <div className="ww-source-visuals">
             {visualPages.map(({ page, asset }) => (
@@ -198,8 +167,7 @@ export function WikiOverview({
       {recent.length > 0 && (
         <>
           <div className="ww-section-heading">
-            <h3>新しく加わった、現場の知恵</h3>
-            <span>映像の場面と判断を一緒に。</span>
+            <h3>最近の作業記録</h3>
           </div>
           <div className="ww-record-grid">
             {recent.map((e) => (
@@ -228,10 +196,6 @@ export function WikiOverview({
           ))}
         </section>
       )}
-      <div className="ww-section-heading ww-manual-heading">
-        <h3>カーボンモノコックマニュアル</h3>
-        <span>製法の違いと、工程の全体像</span>
-      </div>
     </section>
   );
 }
