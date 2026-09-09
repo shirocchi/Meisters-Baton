@@ -630,13 +630,22 @@
     margin-left: 27px;
   }
   .propeller-monitor {
-    width: min(256px, calc(100vw - 16px));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px;
+    width: min(340px, calc(100vw - 20px));
     right: 10px;
     bottom: calc(85px + env(safe-area-inset-bottom));
     border-radius: 9px;
   }
+  .pm-handle-row,
+  .pm-reading,
+  .propeller-monitor h2,
+  .pm-controls,
+  .pm-disclaimer {
+    grid-column: 1 / -1;
+  }
   .pm-reading {
-    padding: 7px 10px 0;
+    padding: 4px 10px 0;
     font-size: 8px;
   }
   .propeller-monitor h2 {
@@ -644,10 +653,17 @@
     margin: 5px 10px 0;
   }
   .propeller-monitor > svg {
-    height: 115px;
+    grid-column: 1;
+    grid-row: 4;
+    height: 64px;
   }
   .pm-labels {
-    padding-bottom: 5px;
+    grid-column: 2;
+    grid-row: 4;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 3px 8px 3px 0;
   }
   .pm-labels > span {
     font-size: 9px;
