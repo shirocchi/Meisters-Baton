@@ -79,7 +79,7 @@ test('mobile: a new expert answer becomes reviewed searchable knowledge and surv
 test('editing published knowledge requires another review and keeps the original evidence', async ({
   page,
 }) => {
-  await page.goto('/#library');
+  await page.goto('/#library/records');
   await page.locator('.wiki-row-main').first().click();
   await page.getByRole('button', { name: '編集', exact: true }).first().click();
   await page
@@ -163,11 +163,11 @@ test('sample records stay labeled and local backup can be restored without dupli
   await page.locator('input[type=file]').setInputFiles(path);
   await page.getByRole('button', { name: '今の記録に追加' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.goto('/#library');
+  await page.goto('/#library/records');
   await expect(page.locator('.wiki-row')).toHaveCount(3);
   await page.goto('/#settings');
   await page.getByLabel('サンプルを表示する', { exact: true }).uncheck();
-  await page.goto('/#library');
+  await page.goto('/#library/records');
   await expect(page.locator('.wiki-row')).toHaveCount(0);
 });
 

@@ -36,12 +36,20 @@ import {
 import type { Article, Claim, Evidence, SearchAnswer } from '../domain/types';
 import { downloadFile } from '../lib/media';
 import { api } from '../lib/api';
+import { PropellerWikiPage } from './PropellerWiki';
 const kindNames = {
   step: '作業の手順',
   judgment: '判断の手がかり',
   warning: '注意・確認したいこと',
 };
 export function LibraryPage() {
+  return location.hash.startsWith('#library/records') ? (
+    <RecordedLibraryPage />
+  ) : (
+    <PropellerWikiPage />
+  );
+}
+function RecordedLibraryPage() {
   const { data, settings, navigate, mutate, toast } = useBaton();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -305,7 +313,7 @@ export function ArticlePage({ id }: { id: string }) {
         title="Wikiが見つかりません"
         text="この端末にないか、削除されたWikiです。"
         action={
-          <button className="button" onClick={() => navigate('library')}>
+          <button className="button" onClick={() => navigate('library/records')}>
             技術Wikiへ
           </button>
         }
@@ -360,7 +368,7 @@ export function ArticlePage({ id }: { id: string }) {
   };
   return (
     <>
-      <PageTitle label="技術Wiki" title={article.title} back={() => navigate('library')}>
+      <PageTitle label="技術Wiki" title={article.title} back={() => navigate('library/records')}>
         <button
           className="icon-button"
           aria-label="Markdownで書き出す"
@@ -692,7 +700,7 @@ export function ArticlePage({ id }: { id: string }) {
                 void mutate((d) => ({ ...d, articles: d.articles.filter((a) => a.id !== id) }))
                   .then(() => {
                     toast('Wikiを削除しました');
-                    navigate('library');
+                    navigate('library/records');
                   })
                   .catch((e) => setError(e.message))
               }

@@ -5,7 +5,7 @@ import type { Server } from 'node:http';
 import { createApp } from '../../server/app';
 
 const apiOrigin = 'http://127.0.0.1:8788';
-const webOrigin = 'http://127.0.0.1:5173';
+const webOrigin = `http://127.0.0.1:${process.env.BATON_TEST_PORT ?? '5173'}`;
 let service: ReturnType<typeof createApp>;
 let listener: Server;
 let dataDirectory: string;
@@ -144,6 +144,7 @@ test('two separate devices register, invite, share an expert draft, retrieve it 
     await expect(member.locator('.toast')).toHaveText('共有の記録をこの端末に保存しました');
     await expect(member.locator('.sync-panel')).toContainText('実記録 1件・Wiki 1件');
     await member.getByRole('button', { name: '技術Wiki', exact: true }).first().click();
+    await member.getByRole('button', { name: '記録から作ったWiki' }).click();
     await member.locator('.wiki-row-main').filter({ hasText: title }).click();
     await expect(member.locator('.claim-body')).toContainText(expertAnswer);
     await expect(member.getByText('下書き・確認待ち', { exact: true })).toBeVisible();
