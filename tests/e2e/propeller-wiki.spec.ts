@@ -82,6 +82,13 @@ test('mobile tree, touch movement, reduced motion and accessibility', async ({ b
   const bounds = (await handle.boundingBox())!;
   const monitor = page.getByLabel('工程解説モニター', { exact: true });
   const start = (await monitor.boundingBox())!;
+  expect(start.width).toBe(340);
+  expect(start.height).toBeLessThanOrEqual(230);
+  expect(start.width / start.height).toBeGreaterThan(1.45);
+  for (const button of await monitor.getByRole('button').all()) {
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
+  await page.screenshot({ path: '.verification/propeller-mobile-wide.png' });
   const client = await context.newCDPSession(page);
   await client.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
