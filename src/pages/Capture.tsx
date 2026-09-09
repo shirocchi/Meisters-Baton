@@ -448,7 +448,7 @@ function RecordingManagement({ record }: { record: Recording }) {
         await deleteMedia(record.mediaId);
       await deleteRecordingDrafts(record.id);
       toast('作業記録と関連Wikiをこの端末から削除しました');
-      navigate('library');
+      navigate('library/records');
     } catch (e) {
       setError((e as Error).message);
     } finally {
