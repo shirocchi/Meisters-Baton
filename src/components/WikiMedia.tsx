@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Film, Play, Maximize2 } from 'lucide-react';
+import { Film, Play } from 'lucide-react';
 import { Modal } from './ui';
 import { VideoPlayer } from './VideoPlayer';
 import { useBaton } from '../state';
@@ -13,7 +13,6 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [requested, setRequested] = useState(false);
-  const [zoom, setZoom] = useState(false);
   const holder = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -75,20 +74,6 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
             やり直す
           </button>
         </span>
-      )}
-      {url && media.type.startsWith('image/') && (
-        <button
-          className="ww-zoom"
-          onClick={() => setZoom(true)}
-          aria-label={`${media.name}を拡大`}
-        >
-          <Maximize2 size={18} />
-        </button>
-      )}
-      {zoom && (
-        <Modal title={media.name} close={() => setZoom(false)} wide>
-          {content}
-        </Modal>
       )}
     </span>
   );

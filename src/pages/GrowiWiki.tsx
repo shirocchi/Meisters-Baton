@@ -14,7 +14,6 @@ import {
   Pencil,
   History,
   Images,
-  Maximize2,
   RefreshCw,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -43,7 +42,6 @@ import { WikiEditor } from '../components/WikiEditor';
 import { WikiHistory } from '../components/WikiHistory';
 import { WikiOverview, RecordTile } from '../components/WikiOverview';
 import { InlineRecording, RecordingEvidence, WorkshopMediaView } from '../components/WikiMedia';
-import { Modal } from '../components/ui';
 import type { Recording } from '../domain/types';
 import type { WorkshopMedia } from '../domain/wikiWorkshop';
 import '../styles-propeller-wiki.css';
@@ -61,7 +59,6 @@ function Asset({
   inline?: boolean;
 }) {
   const [requested, setRequested] = useState(false);
-  const [zoom, setZoom] = useState(false);
   const placeholder = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!inline || requested) return;
@@ -104,21 +101,6 @@ function Asset({
       return (
         <span className="ww-image-view">
           <img className="gw-image" src={current.url} alt={asset.name} loading="lazy" />
-          <button
-            className="ww-zoom"
-            onClick={() => setZoom(true)}
-            aria-label={`${asset.name}を拡大`}
-          >
-            <Maximize2 size={18} />
-          </button>
-          {zoom && (
-            <Modal title={asset.name} close={() => setZoom(false)} wide>
-              <img className="ww-image-full" src={current.url} alt={asset.name} />
-              <a className="button" href={current.url} download={asset.name}>
-                画像を保存
-              </a>
-            </Modal>
-          )}
         </span>
       );
     if (inline && asset.contentType.startsWith('video/'))
