@@ -1,6 +1,6 @@
-# Meister's Baton API
+# Meister's Baton optional AI / legacy local API
 
-Node 22.13+ / Express 5 / built-in SQLite. Run `npm run dev:api` for the loopback-only development service. Copy the root `.env.example` to `.env` before configuring an API key. In production, set `NODE_ENV=production`, build the frontend, and `npm start`; the same service serves `dist/` and `/api/`. Native clients need a deployed HTTPS API origin.
+Node 22.13+ / Express 5 / built-in SQLite. The public browser app uses Supabase for accounts, team sync, and private media; this service is now optional for OpenAI-backed features and retains the previous local sharing implementation for compatibility and tests. Run `npm run dev:api` for the loopback-only service. Copy the server settings from the root `.env.example` to `.env` before configuring an OpenAI API key.
 
 ## Storage and authentication
 

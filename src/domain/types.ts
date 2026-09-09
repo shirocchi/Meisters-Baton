@@ -61,6 +61,15 @@ export interface Evidence {
   time?: number;
   answerId?: string;
   quote: string;
+  sourceLabel?: string;
+  sourceUrl?: string;
+  sourceAttachments?: {
+    filename: string;
+    mediaPath: string;
+    contentType: string;
+    bytes: number;
+    sha256: string;
+  }[];
 }
 export interface Claim {
   id: string;

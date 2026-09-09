@@ -2,11 +2,13 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Capacitor } from '@capacitor/core';
 import {
   Check,
+  ChevronDown,
   CloudDownload,
   CloudUpload,
   Download,
   KeyRound,
   LoaderCircle,
+  LogIn,
   LogOut,
   Plus,
   Save,
@@ -14,13 +16,27 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { Badge, Modal, PageTitle } from '../components/ui';
 import { useBaton } from '../state';
 import { createDemoData, createEmptyData, parseTeamData } from '../domain';
 import type { AuthSession, AuthUser, SyncEnvelope, TeamData } from '../domain/types';
-import { api, assertAuthSession, fetchRemoteMedia } from '../lib/api';
+import { api, assertAuthSession } from '../lib/api';
+import {
+  createTeamInvite,
+  deleteSupabaseAccount,
+  downloadTeamMedia,
+  getTeamSync,
+  isSupabaseConfigured,
+  joinSupabaseTeam,
+  loginSupabase,
+  logoutSupabase,
+  registerSupabase,
+  replaceTeamSync,
+  uploadTeamMedia,
+} from '../lib/supabase';
 import {
   BACKUP_NOTICE,
   clearLocalData,
@@ -146,11 +162,7 @@ export function reconcileTeamData(
 }
 export function validateApiBaseUrl(input: string): string {
   const trimmed = input.trim();
-  if (!trimmed) {
-    if (Capacitor.isNativePlatform())
-      throw new Error('スマートフォンアプリでは、共有サーバーのHTTPSアドレスを入力してください。');
-    return '';
-  }
+  if (!trimmed) return '';
   let url: URL;
   try {
     url = new URL(trimmed);
@@ -230,7 +242,7 @@ export function SettingsPage() {
   const operationRef = useRef(0);
   const currentData = useRef(data);
   currentData.current = data;
-  const syncKey = auth ? `${settings.apiBaseUrl}|${auth.user.id}|${auth.user.teamId}` : '';
+  const syncKey = auth ? `supabase|${auth.user.id}|${auth.user.teamId}` : '';
   const actual = shareableData(data);
   const run = async (label: string, task: () => Promise<void>) => {
     if (busy) return;
@@ -260,19 +272,6 @@ export function SettingsPage() {
     if (!auth) throw new Error('チームにログインしてください。');
     assertAuthSession(auth.token, settings, auth.user.teamId);
   };
-  const teamApi = async <T,>(
-    path: string,
-    options: { method?: string; body?: unknown; timeout?: number } = {},
-  ): Promise<T> => {
-    assertSession();
-    const result = await api<T>(settings, path, {
-      ...options,
-      sessionToken: auth!.token,
-      sessionTeamId: auth!.user.teamId,
-    });
-    assertSession();
-    return result;
-  };
   const teamMutate = (fn: (current: TeamData) => TeamData) =>
     mutate((current) => {
       assertSession();
@@ -295,23 +294,25 @@ export function SettingsPage() {
     void run('接続中', async () => {
       if (mode === 'register' && !name.trim())
         throw new Error('先に記録に使う表示名を入力してください。');
-      const session = await api<AuthSession>(settings, `/api/auth/${mode}`, {
-        method: 'POST',
-        body:
-          mode === 'login'
-            ? { email: email.trim(), password }
-            : { email: email.trim(), password, name: name.trim(), teamName: teamName.trim() },
-      });
+      if (!isSupabaseConfigured()) throw new Error('Supabaseの接続情報がまだ設定されていません。');
+      const session =
+        mode === 'login'
+          ? await loginSupabase(email.trim(), password)
+          : await registerSupabase(email.trim(), password, name.trim(), teamName.trim());
       assertCurrentOperation();
+      if (!session) {
+        setPassword('');
+        setSyncNote('確認メールを送りました。メール内のリンクを開いてからログインしてください。');
+        toast('確認メールを送りました');
+        return;
+      }
       if (
         !session ||
         typeof session.token !== 'string' ||
         !session.token ||
         !validUser(session.user)
       )
-        throw new Error(
-          'ログイン情報を取得できませんでした。設定した接続先が共有サーバーか確認してください。',
-        );
+        throw new Error('ログイン情報を取得できませんでした。Supabaseの設定を確認してください。');
       setAuth(session);
       setPassword('');
       setInvite(null);
@@ -333,7 +334,9 @@ export function SettingsPage() {
       );
   };
   const getRemote = async () => {
-    const remote = await teamApi<SyncEnvelope>('/api/sync');
+    assertSession();
+    const remote = await getTeamSync(auth!);
+    assertSession();
     if (!remote || !Number.isSafeInteger(remote.version) || remote.version < 0)
       throw new Error('共有先の情報を確認できません。再接続してください。');
     remote.data = parseTeamData(remote.data);
@@ -355,7 +358,7 @@ export function SettingsPage() {
         assertSession();
         if (!record.remoteMediaId || (record.mediaId && (await getMedia(record.mediaId)))) continue;
         try {
-          const blob = await fetchRemoteMedia(settings, record.remoteMediaId, auth!.token);
+          const blob = await downloadTeamMedia(auth!, record.remoteMediaId);
           assertSession();
           record.mediaId = await putMedia(blob);
         } catch {
@@ -407,21 +410,20 @@ export function SettingsPage() {
           throw new Error(
             `「${record.title}」の元動画がこの端末にありません。元動画を保存した端末から共有してください。`,
           );
-        if (blob.size > 100 * 1024 * 1024)
+        if (blob.size > 50 * 1024 * 1024)
           throw new Error(
-            `「${record.title}」の動画が共有上限の100MBを超えています。端末の記録は残っています。`,
+            `「${record.title}」の動画がSupabase無料枠の共有上限50MBを超えています。端末の記録は残っています。`,
           );
-        const body = new FormData();
-        body.append('file', blob, record.fileName || 'recording.webm');
-        const media = await teamApi<{ id: string }>('/api/media', { method: 'POST', body });
-        if (!media || typeof media.id !== 'string' || !media.id)
+        const mediaId = await uploadTeamMedia(auth!, blob);
+        assertSession();
+        if (!mediaId)
           throw new Error('動画の共有結果を取得できませんでした。端末の元動画は残っています。');
-        record.remoteMediaId = media.id;
+        record.remoteMediaId = mediaId;
         await teamMutate((current) => ({
           ...current,
           workspace: { id: auth!.user.teamId, name: auth!.user.teamName },
           recordings: current.recordings.map((item) =>
-            item.id === record.id ? { ...item, remoteMediaId: media.id } : item,
+            item.id === record.id ? { ...item, remoteMediaId: mediaId } : item,
           ),
         }));
       }
@@ -435,10 +437,8 @@ export function SettingsPage() {
         })),
       };
       // The version belongs to the GET above. Concurrent writes are rejected by the server with 409.
-      const result = await teamApi<SyncEnvelope>('/api/sync', {
-        method: 'PUT',
-        body: { version: remote.version, data: outgoing },
-      });
+      const result = await replaceTeamSync(auth!, remote.version, outgoing);
+      assertSession();
       if (!result || !Number.isSafeInteger(result.version) || result.version <= remote.version)
         throw new Error(
           '共有結果を確認できませんでした。もう一度「共有から取得」で確認してください。',
@@ -465,7 +465,7 @@ export function SettingsPage() {
   const logout = () =>
     void run('接続を終了中', async () => {
       try {
-        await teamApi('/api/auth/logout', { method: 'POST' });
+        await logoutSupabase();
       } finally {
         assertSession();
         syncBaselines.delete(syncKey);
@@ -620,7 +620,7 @@ export function SettingsPage() {
                     </p>
                   )}
                   <small>
-                    取得は既存の記録を残して追加します。両方で変更された記録は上書きせず停止します。動画の共有は1件100MBまでです。
+                    取得は既存の記録を残して追加します。両方で変更された記録は上書きせず停止します。Supabase無料枠では動画の共有は1件50MBまでです。
                   </small>
                 </div>
                 <details className="settings-details">
@@ -647,60 +647,90 @@ export function SettingsPage() {
                   </button>
                 </details>
                 {auth.user.role === 'owner' && (
-                  <details className="settings-details">
-                    <summary>メンバーを招待する</summary>
-                    <p>
-                      招待コードを相手に渡してください。新しく作ると古いコードは無効になります。
-                    </p>
-                    <button
-                      className="button"
-                      disabled={!!busy}
-                      onClick={() =>
-                        void run('招待コードを作成中', async () =>
-                          setInvite(await teamApi('/api/team/invite', { method: 'POST' })),
-                        )
-                      }
-                    >
-                      <KeyRound size={17} />
-                      {invite ? '招待コードを作り直す' : '招待コードを作る'}
-                    </button>
-                    {invite && (
-                      <label className="invite-code">
-                        招待コード（選択してコピー）
-                        <input
-                          readOnly
-                          value={invite.code}
-                          onFocus={(event) => event.target.select()}
-                        />
-                        <small>
-                          有効期限: {new Date(invite.expiresAt).toLocaleString('ja-JP')}
-                        </small>
-                      </label>
-                    )}
+                  <details className="settings-details team-action-details invite-details">
+                    <summary>
+                      <span className="team-action-summary-icon" aria-hidden="true">
+                        <UserPlus size={19} />
+                      </span>
+                      <span className="team-action-summary-copy">
+                        <strong>メンバーを招待する</strong>
+                        <small>招待コードを発行して、この工房に追加</small>
+                      </span>
+                      <ChevronDown
+                        className="team-action-summary-chevron"
+                        size={18}
+                        aria-hidden="true"
+                      />
+                    </summary>
+                    <div className="team-action-details-body">
+                      <p>
+                        招待コードを相手に渡してください。新しく作ると古いコードは無効になります。
+                      </p>
+                      <button
+                        className="button"
+                        disabled={!!busy}
+                        onClick={() =>
+                          void run('招待コードを作成中', async () =>
+                            setInvite(await createTeamInvite()),
+                          )
+                        }
+                      >
+                        <KeyRound size={17} />
+                        {invite ? '招待コードを作り直す' : '招待コードを作る'}
+                      </button>
+                      {invite && (
+                        <label className="invite-code">
+                          招待コード（選択してコピー）
+                          <input
+                            readOnly
+                            value={invite.code}
+                            onFocus={(event) => event.target.select()}
+                          />
+                          <small>
+                            有効期限: {new Date(invite.expiresAt).toLocaleString('ja-JP')}
+                          </small>
+                        </label>
+                      )}
+                    </div>
                   </details>
                 )}
-                <details className="settings-details">
-                  <summary>招待されたチームに参加する</summary>
-                  <p>
-                    参加しても端末の記録は残ります。別のチームに共有済みの記録は自動で送信しません。現在のチームを管理していて共有データがある場合は、空のアカウントから参加してください。
-                  </p>
-                  <label>
-                    招待コード
-                    <input
-                      value={joinCode}
-                      onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                      maxLength={20}
-                      autoComplete="off"
-                      spellCheck={false}
+                <details className="settings-details team-action-details join-details">
+                  <summary>
+                    <span className="team-action-summary-icon" aria-hidden="true">
+                      <LogIn size={19} />
+                    </span>
+                    <span className="team-action-summary-copy">
+                      <strong>招待されたチームに参加する</strong>
+                      <small>受け取った招待コードを入力して参加</small>
+                    </span>
+                    <ChevronDown
+                      className="team-action-summary-chevron"
+                      size={18}
+                      aria-hidden="true"
                     />
-                  </label>
-                  <button
-                    className="button"
-                    disabled={!!busy || !/^[A-F0-9]{20}$/.test(joinCode.trim())}
-                    onClick={() => setModal('join')}
-                  >
-                    この招待で参加する
-                  </button>
+                  </summary>
+                  <div className="team-action-details-body">
+                    <p>
+                      参加しても端末の記録は残ります。別のチームに共有済みの記録は自動で送信しません。現在のチームを管理していて共有データがある場合は、空のアカウントから参加してください。
+                    </p>
+                    <label>
+                      招待コード
+                      <input
+                        value={joinCode}
+                        onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                        maxLength={20}
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </label>
+                    <button
+                      className="button"
+                      disabled={!!busy || !/^[A-F0-9]{20}$/.test(joinCode.trim())}
+                      onClick={() => setModal('join')}
+                    >
+                      この招待で参加する
+                    </button>
+                  </div>
                 </details>
                 <button className="text-button" disabled={!!busy} onClick={logout}>
                   <LogOut size={16} />
@@ -780,8 +810,8 @@ export function SettingsPage() {
             <div className="settings-heading">
               <ShieldCheck size={22} />
               <div>
-                <h2>AIと接続先</h2>
-                <p>あなたの記録を、送る範囲から決める。</p>
+                <h2>AIとチーム共有</h2>
+                <p>チーム共有はSupabaseへ、AIは指定したサーバーへ接続します。</p>
               </div>
             </div>
             <label className="consent-setting">
@@ -801,9 +831,9 @@ export function SettingsPage() {
               </span>
             </label>
             <details className="settings-details">
-              <summary>接続先を設定する</summary>
+              <summary>AIサーバーの接続先を設定する</summary>
               <p>
-                チーム共有サーバーのアドレスを入力します。Web版で同じサーバーを使う場合は空欄のままにできます。
+                AI解析を使う場合だけサーバーのアドレスを入力します。アカウントとWiki共有は、ビルド時に設定されたSupabaseへ直接接続します。
               </p>
               <label>
                 サーバーのアドレス
@@ -824,11 +854,7 @@ export function SettingsPage() {
                     void run('接続先を保存中', async () => {
                       const url = validateApiBaseUrl(baseUrl);
                       if (url !== settings.apiBaseUrl) {
-                        syncBaselines.delete(syncKey);
-                        setAuth(null);
-                        setInvite(null);
                         setHealth(null);
-                        setSyncNote('');
                       }
                       await configure({ apiBaseUrl: url });
                       setBaseUrl(url);
@@ -840,7 +866,7 @@ export function SettingsPage() {
                 </button>
                 <button
                   className="button"
-                  disabled={!!busy || baseUrl.trim() !== settings.apiBaseUrl}
+                  disabled={!!busy || !baseUrl.trim() || baseUrl.trim() !== settings.apiBaseUrl}
                   onClick={() =>
                     void run('接続を確認中', async () => {
                       const result = await api<{
@@ -865,7 +891,7 @@ export function SettingsPage() {
                 </p>
               )}
               <small>
-                接続先を変えるとログアウトします。スマートフォンアプリでは外部から使えるHTTPSの接続先が必要です。
+                AIを使わない場合は空欄で構いません。スマートフォンアプリからAIを使う場合は、外部から到達できるHTTPSの接続先が必要です。
               </small>
             </details>
           </section>
@@ -949,7 +975,7 @@ export function SettingsPage() {
               退会しても他のメンバーがいるチームの記録は残ります。管理者が退会すると別のメンバーへ管理を引き継ぎます。最後の1人が退会した場合は、チームの共有記録と動画も削除されます。
             </p>
             <small>
-              このベータはメール確認・パスワード再発行に未対応です。公開運用前に提供者の窓口・プライバシー方針を確定してください。
+              メール確認の有無はSupabaseの運用設定に従います。このベータはパスワード再発行に未対応です。公開運用前に提供者の窓口・プライバシー方針を確定してください。
             </small>
           </section>
           <section className="settings-danger">
@@ -1095,10 +1121,8 @@ export function SettingsPage() {
                   disabled={!!busy || !deletePassword}
                   onClick={() =>
                     void run('アカウントを削除中', async () => {
-                      await teamApi('/api/auth/account', {
-                        method: 'DELETE',
-                        body: { password: deletePassword },
-                      });
+                      await deleteSupabaseAccount(auth!, deletePassword);
+                      assertCurrentOperation();
                       syncBaselines.delete(syncKey);
                       setAuth(null);
                       setDeletePassword('');
@@ -1121,21 +1145,19 @@ export function SettingsPage() {
                   disabled={!!busy}
                   onClick={() =>
                     void run('チームに参加中', async () => {
-                      const user = await teamApi<AuthUser>('/api/team/join', {
-                        method: 'POST',
-                        body: { code: joinCode.trim() },
-                      });
-                      if (!validUser(user))
+                      const session = await joinSupabaseTeam(joinCode.trim());
+                      assertCurrentOperation();
+                      if (!validUser(session.user))
                         throw new Error(
                           '参加したチームの情報を確認できませんでした。再接続してください。',
                         );
                       syncBaselines.delete(syncKey);
-                      setAuth({ ...auth!, user });
+                      setAuth(session);
                       setInvite(null);
                       setJoinCode('');
                       setSyncNote('');
                       setModal(null);
-                      toast(`${user.teamName}に参加しました`);
+                      toast(`${session.user.teamName}に参加しました`);
                     })
                   }
                 >

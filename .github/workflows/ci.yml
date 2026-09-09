@@ -40,6 +40,10 @@ jobs:
       - run: node scripts/mobile-preflight.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          VITE_SUPABASE_URL: https://wiki-test.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test_fixture_only
+          BATON_TEST_SUPABASE: '1'
       - run: npm run test:offline
       - name: Keep browser failure details
         if: failure()

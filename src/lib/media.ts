@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { makeId } from '../domain/core';
 import type { Frame } from '../domain/types';
 export const MAX_MEDIA_BYTES = 250 * 1024 * 1024;
 export async function inspectVideo(
@@ -67,7 +68,7 @@ export async function inspectVideo(
       await seeked;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       frames.push({
-        id: crypto.randomUUID(),
+        id: makeId('frame'),
         time: Math.round(time * 100) / 100,
         dataUrl: canvas.toDataURL('image/jpeg', 0.72),
       });

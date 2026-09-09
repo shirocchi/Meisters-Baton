@@ -221,7 +221,7 @@ export function CapturePage() {
   };
   return (
     <>
-      <PageTitle label="作業を未来の知識に" title="新しい記録" back={() => navigate('home')} />
+      <PageTitle title="新しい記録" back={() => navigate('home')} />
       <ProgressSteps current={0} />
       <div className="capture-layout">
         <section className="capture-form">
@@ -236,7 +236,7 @@ export function CapturePage() {
             <div className="upload-symbol">
               {file ? <FileVideo size={31} /> : <Video size={31} />}
             </div>
-            <h2>{file ? file.name : 'いつもの作業を、そのまま。'}</h2>
+            <h2>{file ? file.name : '作業動画'}</h2>
             <p>
               {file
                 ? `${(file.size / 1024 / 1024).toFixed(1)} MB · 保存前に映像を読み取ります`
@@ -343,17 +343,8 @@ export function CapturePage() {
             <span className="note-icon">
               <MessageCircle size={24} />
             </span>
-            <h2>
-              映像の中の、
-              <br />
-              小さな「なぜ」を拾う。
-            </h2>
-            <p>
-              「なぜ、ここで手を止めた？」
-              <br />
-              「何を見て、次へ進んだ？」
-            </p>
-            <p>いつもは言葉にしない判断を、短い質問で一緒に残します。</p>
+            <h2>記録後の流れ</h2>
+            <p>動画やメモの保存後、判断の理由を聞き取り、Wikiの下書きを作成します。</p>
             <ul>
               <li>
                 <Check size={16} />
@@ -372,7 +363,7 @@ export function CapturePage() {
           <button className="demo-link" onClick={() => void demo()}>
             <Film size={19} />
             <span>
-              まずはサンプルで体験<small>3つの質問から、引き継ぎまで</small>
+              サンプルを試す<small>聞き取り・確認・Wiki作成</small>
             </span>
             <ChevronArrow />
           </button>

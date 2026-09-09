@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -11,6 +11,7 @@ import {
   Download,
   Edit3,
   FileText,
+  FolderTree,
   History,
   Link2,
   ListFilter,
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   Video,
 } from 'lucide-react';
 import { useBaton } from '../state';
@@ -37,6 +39,7 @@ import type { Article, Claim, Evidence, SearchAnswer } from '../domain/types';
 import { downloadFile } from '../lib/media';
 import { api } from '../lib/api';
 import { PropellerWikiPage } from './PropellerWiki';
+import { importBackup, mergeTeamData } from '../lib/storage';
 const kindNames = {
   step: '作業の手順',
   judgment: '判断の手がかり',
@@ -54,6 +57,7 @@ function RecordedLibraryPage() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [category, setCategory] = useState('すべて');
+  const importInput = useRef<HTMLInputElement>(null);
   const articles = data.articles.filter(
     (a) =>
       (settings.demoVisible || !a.isDemo) &&
@@ -73,14 +77,60 @@ function RecordedLibraryPage() {
       data.articles.filter((a) => settings.demoVisible || !a.isDemo).map((a) => a.category),
     ),
   ];
+  const visibleArticles = data.articles.filter((a) => settings.demoVisible || !a.isDemo);
+  const discordDrafts = visibleArticles.filter(
+    (article) => !article.isDemo && article.author === 'Discordアーカイブから仮整理',
+  );
+  const importWikiDraft = async (file?: File) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const incoming = importBackup(text);
+      const incomingDrafts = incoming.articles.filter(
+        (article) => !article.isDemo && article.author === 'Discordアーカイブから仮整理',
+      );
+      if (!incomingDrafts.length) throw new Error('「プロペラWiki下書き.json」を選んでください。');
+      await mutate((current) => mergeTeamData(current, incoming));
+      toast(`プロペラWikiの下書き${incomingDrafts.length}本をこの端末へ追加しました。`);
+    } catch (error) {
+      toast((error as Error).message);
+    } finally {
+      if (importInput.current) importInput.current.value = '';
+    }
+  };
   return (
     <>
       <PageTitle label="工房に積み重なる知恵" title="技術Wiki">
+        <input
+          ref={importInput}
+          hidden
+          type="file"
+          accept="application/json,.json"
+          aria-label="Wiki下書きJSONを選択"
+          onChange={(event) => void importWikiDraft(event.target.files?.[0])}
+        />
+        <button className="button" onClick={() => importInput.current?.click()}>
+          <Upload size={18} />
+          初期プロペラWikiを読み込む
+        </button>
         <button className="button primary" onClick={() => navigate('capture')}>
           <PlusIcon />
           記録からつくる
         </button>
       </PageTitle>
+      <section className="wiki-origin-banner">
+        <div>
+          <span className="wiki-origin-icon" aria-hidden="true">
+            <FolderTree size={20} />
+          </span>
+          <div>
+            <strong>Discord一次資料から、階層を持つWikiへ</strong>
+            <p>ペラ日記を主資料にした下書きを取り込み、原文と照らして確認してから公開します。</p>
+            <small>選んだJSONはこの端末内だけで処理され、Vercelへ送信されません。</small>
+          </div>
+        </div>
+        <span>{discordDrafts.length ? `${discordDrafts.length}本の下書き` : '取込待ち'}</span>
+      </section>
       <div className="library-tools">
         <label className="search-field">
           <Search size={19} />
@@ -123,88 +173,135 @@ function RecordedLibraryPage() {
         ))}
         <span>{articles.length}件</span>
       </div>
-      {articles.length === 0 ? (
-        <Empty
-          icon={<BookOpen size={35} />}
-          title={query ? '一致する知識がありません' : 'まだ知識がありません'}
-          text={
-            query
-              ? '別の言葉で探すか、後輩の質問として残しておけます。'
-              : '動画や作業メモから、最初の判断を残してみましょう。'
-          }
-          action={
-            <button className="button primary" onClick={() => navigate(query ? 'ask' : 'capture')}>
-              {query ? '先輩の知恵で質問する' : '作業を記録する'}
-              <ArrowRight size={17} />
-            </button>
-          }
-        />
-      ) : (
-        <div className="wiki-list">
-          {articles.map((article, i) => (
-            <div className="wiki-row" key={article.id}>
-              <button className="wiki-row-main" onClick={() => navigate(`article/${article.id}`)}>
-                <div className="wiki-thumb">
-                  {data.recordings.find((r) => r.id === article.recordingId)?.frames[0]?.dataUrl ? (
-                    <img
-                      src={
-                        data.recordings.find((r) => r.id === article.recordingId)!.frames[0].dataUrl
-                      }
-                      alt=""
-                    />
-                  ) : (
-                    <CraftIllustration variant={i} />
-                  )}
-                </div>
-                <div className="wiki-row-copy">
-                  <div className="inline-meta">
-                    <span className="category">{article.category}</span>
-                    <Badge
-                      tone={
-                        article.isDemo
-                          ? 'amber'
-                          : article.status === 'published'
-                            ? 'green'
-                            : 'neutral'
-                      }
-                    >
-                      {article.isDemo
-                        ? 'サンプル'
-                        : article.status === 'published'
-                          ? '確認済み'
-                          : '下書き'}
-                    </Badge>
-                  </div>
-                  <h2>{article.title}</h2>
-                  <p>{article.summary}</p>
-                  <div className="wiki-meta">
-                    <span>
-                      <Link2 size={13} />
-                      {article.claims.length}項目に根拠
-                    </span>
-                    <span>{article.author}</span>
-                    <span>{formatDate(article.updatedAt)} 更新</span>
-                  </div>
-                </div>
-              </button>
+      <div className="wiki-browser-layout">
+        <aside className="wiki-page-tree" aria-label="Wikiページツリー">
+          <div className="wiki-tree-heading">
+            <FolderTree size={17} />
+            <strong>ページツリー</strong>
+          </div>
+          <button
+            className={category === 'すべて' ? 'active' : ''}
+            onClick={() => setCategory('すべて')}
+          >
+            {discordDrafts.length ? 'プロペラ製作Wiki' : 'すべてのWiki'}
+            <span>{visibleArticles.length}</span>
+          </button>
+          {categories.map((name) => (
+            <div className="wiki-tree-group" key={name}>
               <button
-                className={`icon-button bookmark ${article.bookmarked ? 'selected' : ''}`}
-                aria-label={article.bookmarked ? 'あとで読むを解除' : 'あとで読むに保存'}
-                onClick={() =>
-                  void mutate((d) => ({
-                    ...d,
-                    articles: d.articles.map((a) =>
-                      a.id === article.id ? { ...a, bookmarked: !a.bookmarked } : a,
-                    ),
-                  })).catch((e) => toast(e.message))
-                }
+                className={category === name ? 'active' : ''}
+                onClick={() => setCategory(name)}
               >
-                <Bookmark size={20} fill={article.bookmarked ? 'currentColor' : 'none'} />
+                {name}
+                <span>{visibleArticles.filter((article) => article.category === name).length}</span>
               </button>
+              {visibleArticles
+                .filter((article) => article.category === name)
+                .map((article) => (
+                  <button
+                    className="wiki-tree-page"
+                    key={article.id}
+                    onClick={() => navigate(`article/${article.id}`)}
+                  >
+                    {article.title}
+                  </button>
+                ))}
             </div>
           ))}
+        </aside>
+        <div className="wiki-browser-results">
+          {articles.length === 0 ? (
+            <Empty
+              icon={<BookOpen size={35} />}
+              title={query ? '一致する知識がありません' : 'まだ知識がありません'}
+              text={
+                query
+                  ? '別の言葉で探すか、後輩の質問として残しておけます。'
+                  : 'Discord一次資料のWiki下書き、または作業記録を取り込んでください。'
+              }
+              action={
+                <button
+                  className="button primary"
+                  onClick={() => (query ? navigate('ask') : importInput.current?.click())}
+                >
+                  {query ? '先輩の知恵で質問する' : '初期プロペラWikiを読み込む'}
+                  <ArrowRight size={17} />
+                </button>
+              }
+            />
+          ) : (
+            <div className="wiki-list">
+              {articles.map((article, i) => (
+                <div className="wiki-row" key={article.id}>
+                  <button
+                    className="wiki-row-main"
+                    onClick={() => navigate(`article/${article.id}`)}
+                  >
+                    <div className="wiki-thumb">
+                      {data.recordings.find((r) => r.id === article.recordingId)?.frames[0]
+                        ?.dataUrl ? (
+                        <img
+                          src={
+                            data.recordings.find((r) => r.id === article.recordingId)!.frames[0]
+                              .dataUrl
+                          }
+                          alt=""
+                        />
+                      ) : (
+                        <CraftIllustration variant={i} />
+                      )}
+                    </div>
+                    <div className="wiki-row-copy">
+                      <div className="inline-meta">
+                        <span className="category">{article.category}</span>
+                        <Badge
+                          tone={
+                            article.isDemo
+                              ? 'amber'
+                              : article.status === 'published'
+                                ? 'green'
+                                : 'neutral'
+                          }
+                        >
+                          {article.isDemo
+                            ? 'サンプル'
+                            : article.status === 'published'
+                              ? '確認済み'
+                              : '下書き'}
+                        </Badge>
+                      </div>
+                      <h2>{article.title}</h2>
+                      <p>{article.summary}</p>
+                      <div className="wiki-meta">
+                        <span>
+                          <Link2 size={13} />
+                          {article.claims.length}項目に根拠
+                        </span>
+                        <span>{article.author}</span>
+                        <span>{formatDate(article.updatedAt)} 更新</span>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    className={`icon-button bookmark ${article.bookmarked ? 'selected' : ''}`}
+                    aria-label={article.bookmarked ? 'あとで読むを解除' : 'あとで読むに保存'}
+                    onClick={() =>
+                      void mutate((d) => ({
+                        ...d,
+                        articles: d.articles.map((a) =>
+                          a.id === article.id ? { ...a, bookmarked: !a.bookmarked } : a,
+                        ),
+                      })).catch((e) => toast(e.message))
+                    }
+                  >
+                    <Bookmark size={20} fill={article.bookmarked ? 'currentColor' : 'none'} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
       <section className="recordings-section">
         <div className="section-heading">
           <h2>もとの作業記録</h2>
@@ -258,7 +355,33 @@ export function EvidenceViewer({ evidence, close }: { evidence: Evidence; close:
           {record?.isDemo && <Badge tone="amber">サンプル</Badge>}
         </div>
         {question && <p className="source-question">質問：{question.text}</p>}
+        {evidence.sourceLabel && <p className="source-question">出典：{evidence.sourceLabel}</p>}
         <blockquote>{evidence.quote}</blockquote>
+        {evidence.sourceAttachments?.length ? (
+          <div className="source-attachments">
+            <strong>一次アーカイブの添付（{evidence.sourceAttachments.length}点）</strong>
+            <ul>
+              {evidence.sourceAttachments.map((attachment) => (
+                <li key={`${attachment.sha256}:${attachment.filename}`}>
+                  {attachment.filename}
+                  <small>{new Intl.NumberFormat('ja-JP').format(attachment.bytes)} bytes</small>
+                </li>
+              ))}
+            </ul>
+            <p>添付本体は共有フォルダの「01_一次アーカイブ」に保存されています。</p>
+          </div>
+        ) : null}
+        {evidence.sourceUrl && (
+          <a
+            className="button source-link"
+            href={evidence.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Discord原文を開く
+            <ArrowUpRight size={15} />
+          </a>
+        )}
         <p className="source-author">
           {answer?.author ?? record?.author} {answer && ` / ${formatDate(answer.createdAt)}`}
         </p>
@@ -287,7 +410,7 @@ function articleMarkdown(article: Article) {
           c.evidence
             .map(
               (e) =>
-                `> 根拠 (${e.kind}, 記録 ${e.recordingId}${e.time !== undefined ? `, ${formatTime(e.time)}` : ''}): ${e.quote.replace(/\n/g, '\n> ')}\n`,
+                `> 根拠 (${e.kind}, 記録 ${e.recordingId}${e.time !== undefined ? `, ${formatTime(e.time)}` : ''}): ${e.quote.replace(/\n/g, '\n> ')}\n${e.sourceUrl ? `> 原文: ${e.sourceUrl}\n` : ''}`,
             )
             .join('\n'),
       )
@@ -452,11 +575,13 @@ export function ArticlePage({ id }: { id: string }) {
                     {claim.evidence.map((item, j) => (
                       <button key={item.id} onClick={() => setEvidence(item)}>
                         <Link2 size={14} />
-                        {item.kind === 'answer'
-                          ? '作業者の回答'
-                          : item.kind === 'note'
-                            ? '記録メモ'
-                            : `映像 ${formatTime(item.time ?? 0)}`}
+                        {item.sourceUrl
+                          ? 'Discord原文'
+                          : item.kind === 'answer'
+                            ? '作業者の回答'
+                            : item.kind === 'note'
+                              ? '記録メモ'
+                              : `映像 ${formatTime(item.time ?? 0)}`}
                         {claim.evidence.length > 1 ? ` ${j + 1}` : ''}
                         <ArrowUpRight size={13} />
                       </button>
@@ -509,11 +634,13 @@ export function ArticlePage({ id }: { id: string }) {
                       <MessageCircle size={18} />
                       <span>
                         <strong>
-                          {e.kind === 'answer'
-                            ? '作業者の回答原文'
-                            : e.kind === 'note'
-                              ? '作業メモ'
-                              : '映像の観察'}
+                          {e.sourceUrl
+                            ? 'Discord一次資料'
+                            : e.kind === 'answer'
+                              ? '作業者の回答原文'
+                              : e.kind === 'note'
+                                ? '作業メモ'
+                                : '映像の観察'}
                         </strong>
                         <p>{e.quote}</p>
                       </span>

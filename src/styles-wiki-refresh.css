@@ -1,0 +1,96 @@
+.wiki-origin-banner {
+  border-color: var(--line);
+  background: linear-gradient(120deg, var(--surface-raised), var(--brand-soft));
+}
+
+.wiki-origin-icon,
+.wiki-page-tree button:hover,
+.wiki-page-tree button.active {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.wiki-tree-heading,
+.wiki-origin-banner > span {
+  color: var(--brand);
+}
+
+.wiki-origin-banner p,
+.wiki-origin-banner small,
+.wiki-page-tree button,
+.wiki-page-tree button > span,
+.wiki-page-tree .wiki-tree-page {
+  color: var(--muted);
+}
+
+.wiki-page-tree,
+.wiki-tree-group {
+  border-color: var(--line);
+}
+
+@media (max-width: 760px) {
+  body .page-title .title-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  body .page-title .title-actions .button {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    white-space: normal;
+  }
+
+  body .home-page > .page-title .title-actions {
+    display: flex;
+    width: auto;
+    margin-left: auto;
+  }
+
+  body .home-page > .page-title .title-actions .button {
+    width: auto;
+    max-width: none;
+    white-space: nowrap;
+  }
+
+  body .wiki-origin-banner {
+    align-items: flex-start;
+  }
+
+  body .wiki-origin-banner > span {
+    display: none;
+  }
+
+  body .wiki-browser-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body .wiki-page-tree {
+    position: static;
+    display: flex;
+    max-width: 100%;
+    max-height: none;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 9px;
+  }
+
+  body .wiki-tree-heading,
+  body .wiki-tree-page {
+    display: none;
+  }
+
+  body .wiki-tree-group {
+    flex: 0 0 auto;
+    margin: 0;
+    border: 0;
+    padding: 0;
+  }
+
+  body .wiki-page-tree button {
+    width: auto;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+}

@@ -1,22 +1,21 @@
 import { useEffect, useState } from 'react';
 import {
-  ArrowUpRight,
   AudioLines,
   BookOpen,
   ChevronRight,
   CircleHelp,
   Clock3,
+  HardDrive,
   Home,
-  Leaf,
+  Link2,
   Plus,
   Search,
   Settings2,
-  ShieldCheck,
   Video,
   WifiOff,
 } from 'lucide-react';
 import { BatonProvider, useBaton } from './state';
-import { Badge, CraftIllustration, Logo } from './components/ui';
+import { Badge, Logo } from './components/ui';
 import { CapturePage, InterviewPage } from './pages/Capture';
 import { ArticlePage, LibraryPage, AskPage } from './pages/Knowledge';
 import { SettingsPage } from './pages/Settings';
@@ -29,12 +28,29 @@ const navigation = [
 ];
 function HomePage() {
   const { data, settings, navigate } = useBaton();
+  const [query, setQuery] = useState('');
   const real = data.recordings.filter((r) => !r.isDemo);
-  const shown = data.articles.filter((a) => settings.demoVisible || !a.isDemo);
+  const shown = data.articles.filter(
+    (article) =>
+      (settings.demoVisible || !article.isDemo) &&
+      `${article.title} ${article.summary} ${article.category}`
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase()),
+  );
+  const recordingById = new Map(data.recordings.map((recording) => [recording.id, recording]));
   const drafts = data.recordings.filter(
     (r) => r.status !== 'published' && (settings.demoVisible || !r.isDemo),
   );
   const requests = data.requests.filter((r) => r.status === 'open');
+  const publishedCount = data.articles.filter(
+    (article) => !article.isDemo && article.status === 'published',
+  ).length;
+  const draftClaimCount = data.articles
+    .filter((article) => !article.isDemo)
+    .flatMap((article) => article.claims)
+    .filter((claim) => claim.review === 'draft').length;
+  const hasRealStats = real.length > 0 || publishedCount > 0 || draftClaimCount > 0;
+
   return (
     <div className="home-page">
       <div className="page-title">
@@ -48,68 +64,62 @@ function HomePage() {
           </p>
           <h1>工房の記録</h1>
         </div>
-        <div className="local-save">
-          <span />
-          この端末に保存
-        </div>
-      </div>
-      <section className="workbench">
-        <div className="workbench-copy">
-          <h2>作業を記録</h2>
-          <button className="button light" onClick={() => navigate('capture')}>
-            <Plus size={20} />
-            今日の作業を残す
-            <ArrowUpRight size={19} />
+        <div className="title-actions">
+          <button className="button primary" onClick={() => navigate('capture')}>
+            <Plus size={18} />
+            作業を記録
           </button>
         </div>
-        <div className="baton-art" aria-hidden="true">
-          <div className="orbit orbit-one" />
-          <div className="orbit orbit-two" />
-          <div className="baton-rod rod-one" />
-          <div className="baton-rod rod-two" />
-          <div className="art-joint">
-            <Leaf size={23} />
+      </div>
+      <div className="home-tools">
+        <label className="search-field">
+          <Search size={18} />
+          <input
+            aria-label="工房の知識を検索"
+            placeholder="工程、材料、判断の言葉で検索"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery('')} aria-label="検索語を消す">
+              ×
+            </button>
+          )}
+        </label>
+        <span className="storage-status">
+          <HardDrive size={15} />
+          この端末に保存
+        </span>
+      </div>
+      {hasRealStats ? (
+        <section className="work-stats" aria-label="あなたの工房の記録数">
+          <div>
+            <span>作業記録</span>
+            <strong>
+              {real.length}
+              <small>件</small>
+            </strong>
           </div>
-        </div>
-      </section>
-      <section className="work-stats" aria-label="あなたの工房の記録数">
-        <div>
-          <span>残した作業</span>
-          <strong>
-            {real.length}
-            <small>件</small>
-          </strong>
-        </div>
-        <div>
-          <span>引き継げる知識</span>
-          <strong>
-            {data.articles.filter((a) => !a.isDemo && a.status === 'published').length}
-            <small>件</small>
-          </strong>
-        </div>
-        <div>
-          <span>確認を待つ判断</span>
-          <strong>
-            {
-              data.articles
-                .filter((a) => !a.isDemo)
-                .flatMap((a) => a.claims)
-                .filter((c) => c.review === 'draft').length
-            }
-            <small>件</small>
-          </strong>
-        </div>
-        <p>
-          <ShieldCheck size={18} />
-          映像と回答に戻れる、
-          <br />
-          根拠のある引き継ぎ。
-        </p>
-      </section>
+          <div>
+            <span>公開済みWiki</span>
+            <strong>
+              {publishedCount}
+              <small>件</small>
+            </strong>
+          </div>
+          <div>
+            <span>確認待ち</span>
+            <strong>
+              {draftClaimCount}
+              <small>件</small>
+            </strong>
+          </div>
+        </section>
+      ) : null}
       <div className="home-columns">
         <div>
           <div className="section-heading">
-            <h2>引き継ぎライブラリ</h2>
+            <h2>技術Wiki</h2>
             <button className="text-button" onClick={() => navigate('library')}>
               すべて見る
               <ChevronRight size={16} />
@@ -118,50 +128,50 @@ function HomePage() {
           {shown.length === 0 ? (
             <div className="quiet-panel">
               <BookOpen />
-              <h3>最初の知識を残しましょう</h3>
-              <p>作業の記録とあなたの回答から、Wikiが育ちます。</p>
+              <h3>{query ? '一致する知識がありません' : 'まだ技術Wikiがありません'}</h3>
+              <p>
+                {query
+                  ? '別の言葉で検索してください。'
+                  : '「作業を記録」から動画やメモを保存すると、Wikiの下書きを作成できます。'}
+              </p>
             </div>
           ) : (
-            <div className="article-grid">
-              {shown.slice(0, 4).map((article, i) => (
+            <div className="article-grid knowledge-index">
+              {shown.slice(0, 6).map((article) => (
                 <button
                   className="article-tile"
                   key={article.id}
                   onClick={() => navigate(`article/${article.id}`)}
                 >
-                  <div className="tile-image">
-                    {data.recordings.find((r) => r.id === article.recordingId)?.frames[0]
-                      ?.dataUrl ? (
-                      <img
-                        src={
-                          data.recordings.find((r) => r.id === article.recordingId)!.frames[0]
-                            .dataUrl
-                        }
-                        alt="作業動画のフレーム"
-                      />
+                  <span className="knowledge-icon" aria-hidden="true">
+                    {recordingById.get(article.recordingId)?.frames[0]?.dataUrl ? (
+                      <img src={recordingById.get(article.recordingId)!.frames[0].dataUrl} alt="" />
                     ) : (
-                      <CraftIllustration variant={i} />
+                      <BookOpen size={21} />
                     )}
-                    <Badge tone={article.isDemo ? 'amber' : 'green'}>
-                      {article.isDemo
-                        ? 'サンプル'
-                        : article.status === 'published'
-                          ? '確認済み'
-                          : '下書き'}
-                    </Badge>
-                  </div>
+                  </span>
                   <div className="tile-body">
-                    <span className="category">{article.category}</span>
+                    <div className="knowledge-labels">
+                      <span className="category">{article.category}</span>
+                      <Badge tone={article.isDemo ? 'neutral' : 'green'}>
+                        {article.isDemo
+                          ? 'サンプル'
+                          : article.status === 'published'
+                            ? '確認済み'
+                            : '下書き'}
+                      </Badge>
+                    </div>
                     <h3>{article.title}</h3>
                     <p>{article.summary}</p>
                     <div>
                       <span>
-                        <BookOpen size={13} />
-                        {article.claims.length}つの判断・手順
+                        <Link2 size={13} />
+                        {article.claims.length}項目に根拠
                       </span>
-                      <ArrowUpRight size={17} />
+                      <span>{formatDate(article.updatedAt)} 更新</span>
                     </div>
                   </div>
+                  <ChevronRight size={16} aria-hidden="true" />
                 </button>
               ))}
             </div>
@@ -170,7 +180,7 @@ function HomePage() {
         <aside className="home-aside">
           <section>
             <div className="section-heading">
-              <h2>記録のつづき</h2>
+              <h2>進行中の記録</h2>
               <Badge>{drafts.length}</Badge>
             </div>
             {drafts.slice(0, 3).map((r) => (
@@ -195,28 +205,16 @@ function HomePage() {
             {drafts.length === 0 && (
               <div className="small-empty">
                 <Clock3 size={24} />
-                <p>
-                  中断した記録はここから。
-                  <br />
-                  今はすべて片付いています。
-                </p>
+                <p>進行中の記録はありません。</p>
               </div>
             )}
           </section>
           <section className="question-note">
             <CircleHelp size={24} />
-            <h3>
-              後輩の「わからない」が、
-              <br />
-              次の記録のきっかけに。
-            </h3>
-            {requests.length > 0 ? (
-              <p>{requests[0].text}</p>
-            ) : (
-              <p>まだ残っていない工程や判断を、質問としてストックできます。</p>
-            )}
+            <h3>未回答の質問</h3>
+            {requests.length > 0 ? <p>{requests[0].text}</p> : <p>保存した質問はありません。</p>}
             <button className="text-button" onClick={() => navigate('ask')}>
-              知恵を探す
+              質問を開く
               <ChevronRight size={16} />
             </button>
           </section>
@@ -285,12 +283,6 @@ function Shell() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="baton-line">
-            <span />
-            <i />
-            <span />
-          </div>
-          <p>技術は、人から人へ。</p>
           <button
             className={active === 'settings' ? 'active' : ''}
             onClick={() => navigate('settings')}
@@ -298,9 +290,6 @@ function Shell() {
             <Settings2 size={19} />
             工房の設定
           </button>
-          <small>
-            Beta 0.1 <span>Meister's Baton</span>
-          </small>
         </div>
       </aside>
       <div className="main-wrap">

@@ -612,6 +612,38 @@
     gap: 10px;
     align-items: stretch;
   }
+  body .wiki-origin-banner {
+    align-items: flex-start;
+  }
+  body .wiki-origin-banner > span {
+    display: none;
+  }
+  body .wiki-browser-layout {
+    grid-template-columns: 1fr;
+  }
+  body .wiki-page-tree {
+    position: static;
+    display: flex;
+    max-height: none;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 9px;
+  }
+  body .wiki-tree-heading,
+  body .wiki-tree-page {
+    display: none;
+  }
+  body .wiki-tree-group {
+    flex: 0 0 auto;
+    margin: 0;
+    border: 0;
+    padding: 0;
+  }
+  body .wiki-page-tree button {
+    width: auto;
+    min-height: 44px;
+    white-space: nowrap;
+  }
   body .search-field {
     padding: 0 12px;
     gap: 8px;

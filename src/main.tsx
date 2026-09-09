@@ -6,6 +6,11 @@ import '@fontsource-variable/manrope';
 import { App } from './App';
 import './styles.css';
 import './styles-refinements.css';
+// Recovered from the last verified UI-refresh deployment after its source workspace was lost.
+// Scoped feature styles follow so they can extend this refreshed visual system safely.
+import './styles-refresh.css';
+import './styles-wiki-refresh.css';
+import './styles-settings-refresh.css';
 class ErrorBoundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {

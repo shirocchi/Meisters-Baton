@@ -93,7 +93,7 @@ try {
   const title = `オフライン引き継ぎ試験 ${Date.now().toString(36)}`;
   const firstAnswer = '練習用の識別票を指さしてから、図面番号と照合しました。';
   const secondAnswer = '通信できない場所でも、不明な点を記録して担当者へ確認します。';
-  await page.getByRole('button', { name: '今日の作業を残す', exact: true }).click();
+  await page.getByRole('button', { name: '作業を記録', exact: true }).click();
   await page.getByLabel(/作業の名前/).fill(title);
   await page
     .getByLabel(/作業メモ/)

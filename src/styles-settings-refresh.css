@@ -1,0 +1,103 @@
+.settings-section .team-action-details {
+  border-top: 0;
+  margin-top: 20px;
+  padding-top: 0;
+}
+
+.settings-section .team-action-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 66px;
+  padding: 11px 13px;
+  list-style: none;
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: 1px solid #cbd7e6;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.settings-section .team-action-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-section .team-action-details > summary:hover {
+  background: #e2eaf4;
+  border-color: #aec0d5;
+}
+
+.settings-section .team-action-details > summary:focus-visible {
+  outline: 2px solid #668db8;
+  outline-offset: 2px;
+}
+
+.team-action-summary-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  color: var(--brand);
+  background: #fff;
+  border: 1px solid #d4deeb;
+  border-radius: 10px;
+}
+
+.team-action-summary-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.team-action-summary-copy strong {
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.team-action-summary-copy small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.team-action-summary-chevron {
+  flex: 0 0 auto;
+  transition: transform 0.15s ease;
+}
+
+.team-action-details[open] > summary {
+  background: #e6edf6;
+  border-color: #aebfd3;
+  box-shadow: 0 0 0 3px rgba(79, 118, 164, 0.08);
+}
+
+.team-action-details[open] > summary .team-action-summary-chevron {
+  transform: rotate(180deg);
+}
+
+.settings-section .team-action-details > .team-action-details-body {
+  padding: 14px 2px 0;
+}
+
+@media (max-width: 760px) {
+  .settings-section .team-action-details > summary {
+    min-height: 70px;
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-section .team-action-details > summary,
+  .team-action-summary-chevron {
+    transition: none;
+  }
+}
