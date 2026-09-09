@@ -185,9 +185,7 @@ test.describe('editable workshop Wiki', () => {
     await page.getByLabel('モニターを最小化', { exact: true }).click();
     await page.getByRole('button', { name: '写真・動画', exact: true }).click();
     await expect(page.locator('.ww-gallery img')).toBeVisible();
-    await page.getByLabel('fixture.svgを拡大').click();
-    await expect(page.getByRole('dialog').getByRole('img')).toBeVisible();
-    await page.getByRole('button', { name: '閉じる', exact: true }).click();
+    await expect(page.locator('.ww-gallery button[aria-label$="を拡大"]')).toHaveCount(0);
     await page.getByRole('button', { name: '編集', exact: true }).click();
     await expect(page.getByRole('textbox', { name: 'Wikiの本文' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

@@ -348,20 +348,6 @@
   display: inline-block;
   max-width: 100%;
 }
-.ww-zoom {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  background: white;
-  border: 1px solid #b5c5cd;
-  border-radius: 8px;
-  color: #244454;
-}
-.ww-image-full,
 .ww-frame-large {
   display: block;
   max-width: 100%;
