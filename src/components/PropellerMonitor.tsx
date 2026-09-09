@@ -10,7 +10,12 @@ function ProcessDiagram({ step, progress }: { step: PropellerStep; progress: num
   const spread = (1 - t) * 44;
   const scene = step.scene;
   return (
-    <svg viewBox="0 0 380 230" role="img" aria-label={`${step.title}の位置関係を示す模式図`}>
+    <svg
+      viewBox="0 0 380 230"
+      data-scene={scene}
+      role="img"
+      aria-label={`${step.title}の位置関係を示す模式図`}
+    >
       <defs>
         <pattern id={`grid${unique}`} width="24" height="24" patternUnits="userSpaceOnUse">
           <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#ffffff0c" strokeWidth="1" />
@@ -175,8 +180,103 @@ function ProcessDiagram({ step, progress }: { step: PropellerStep; progress: num
           )}
         </g>
       )}
-      <text x="15" y="217" fill="#a9c0ce" fontSize="10" letterSpacing="2">
-        PROPELLER / PROCESS STUDY
+      {scene === 'vacuum' && (
+        <g fill="#c4f1ff">
+          {[0, 1, 2, 3].map((n) => {
+            const flow = (progress * 2 + n / 4) % 1;
+            return (
+              <circle
+                key={n}
+                cx={170 + flow * 184}
+                cy={125 - Math.sin(flow * Math.PI) * 24}
+                r={3}
+                opacity={1 - flow * 0.6}
+              />
+            );
+          })}
+          <text x="245" y="69" fontSize="12">
+            排気 → 配管
+          </text>
+          <path d="M 290 76 L 342 121" fill="none" stroke="#c4f1ff" />
+          <text x="45" y="42" fontSize="12">
+            バッグ
+          </text>
+          <path d="M 85 48 L 118 78" fill="none" stroke="#c4f1ff" />
+        </g>
+      )}
+      {scene === 'laminate' && (
+        <g fill="#eef5f7" stroke="#eef5f7">
+          {[0, 1, 2].map((n) => (
+            <path
+              key={n}
+              d={`M ${125 + n * 48} ${108 - n * 7} l 35 -8 m -18 -10 l 4 25`}
+              strokeWidth="1"
+              opacity={0.45 + t * 0.5}
+            />
+          ))}
+          <text x="35" y="32" stroke="none" fontSize="12">
+            繊維の層
+          </text>
+          <path d="M 102 36 L 147 78" fill="none" />
+          <text x="279" y="185" stroke="none" fontSize="12">
+            型
+          </text>
+        </g>
+      )}
+      {(scene === 'bond' || scene === 'core') && (
+        <g>
+          <path
+            d="M 87 164 Q 179 127 296 132"
+            fill="none"
+            stroke="#f3ba62"
+            strokeWidth={3 + t * 3}
+          />
+          {[0, 1, 2].map((n) => (
+            <path
+              key={n}
+              d={`M ${125 + n * 65} 55 v ${16 + t * 12} m -5 -6 l 5 6 5 -6`}
+              stroke="#e4f0f4"
+              fill="none"
+              strokeWidth="2"
+            />
+          ))}
+          <text x="24" y="43" fill="#e4f0f4" fontSize="12">
+            {scene === 'core' ? '内部部材' : '上側外皮'}
+          </text>
+          <path d="M 96 47 L 115 86" stroke="#c5d9e3" fill="none" />
+          <text x="240" y="190" fill="#f3ba62" fontSize="12">
+            接合面
+          </text>
+          <path d="M 267 174 L 265 141" stroke="#f3ba62" fill="none" />
+        </g>
+      )}
+      {scene === 'mould' && (
+        <g fill="#e5eff5" stroke="#e5eff5">
+          <path d={`M 184 72 v ${-14 - t * 15} m -5 6 l 5 -6 5 6`} fill="none" strokeWidth="2" />
+          <text x="33" y="45" stroke="none" fontSize="12">
+            形を写す面
+          </text>
+          <path d="M 108 48 L 134 97" fill="none" />
+          <text x="277" y="195" stroke="none" fontSize="12">
+            型
+          </text>
+        </g>
+      )}
+      {scene === 'finish' && (
+        <g fill="#e5eff5">
+          <text x="28" y="46" fontSize="12">
+            対象面に沿う動き
+          </text>
+          <path
+            d="M 82 64 Q 180 33 281 55 l -9 -6 m 9 6 -11 3"
+            fill="none"
+            stroke="#e5eff5"
+            strokeDasharray="5 4"
+          />
+        </g>
+      )}
+      <text x="15" y="217" fill="#d1e1ea" fontSize="11">
+        {step.labels[Math.min(2, Math.floor(progress * 3))]}
       </text>
       <text x="365" y="217" textAnchor="end" fill="#a9c0ce" fontSize="10">
         模式図
@@ -349,7 +449,7 @@ export function PropellerMonitor({
         <>
           <div className="pm-reading">
             <span>
-              READING {String(index + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}
+              本文 {String(index + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}
             </span>
             <span>スクロール連動</span>
           </div>
@@ -386,7 +486,12 @@ export function PropellerMonitor({
             />
             <span>{Math.min(8, Math.floor(progress * 8))} / 8s</span>
           </div>
-          <p className="pm-disclaimer">位置関係の概念図 · 寸法・施工条件は表しません</p>
+          <p
+            className="pm-disclaimer"
+            title="位置関係の模式図です。寸法・施工条件は原文で確認してください。"
+          >
+            {step.focus} · 模式図
+          </p>
         </>
       )}
     </aside>

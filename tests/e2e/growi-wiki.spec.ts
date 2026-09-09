@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import type { WikiArchive, WikiPage } from '../../src/domain/growiWiki';
 import { connect } from './helpers/wikiFixture';
@@ -76,11 +77,32 @@ test.describe('authenticated imported wiki', () => {
     test.skip(!process.env.GROWI_QA_ARCHIVE, 'Local private-source QA only');
     const archive = JSON.parse(readFileSync(process.env.GROWI_QA_ARCHIVE!, 'utf8'));
     await connect(page, archive);
+    await page.route('**/storage/v1/object/authenticated/propeller-wiki-media/*', async (route) => {
+      const hash = new URL(route.request().url()).pathname.split('/').at(-1)!;
+      const asset = archive.pages
+        .flatMap((p: WikiPage) => p.attachments)
+        .find((a: { sha256?: string }) => a.sha256 === hash);
+      if (!asset || !/^[a-f0-9]{64}$/.test(hash)) return route.fulfill({ status: 404 });
+      return route.fulfill({
+        body: readFileSync(join(dirname(process.env.GROWI_QA_ARCHIVE!), 'media', hash)),
+        contentType: asset.contentType,
+      });
+    });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/#library');
     await expect(page.locator('.gw-markdown h1')).toBeVisible();
+    await page.getByLabel('モニターを最小化', { exact: true }).click();
     await page.screenshot({ path: '.verification/growi-desktop.png' });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: '.verification/growi-mobile.png' });
+    await page
+      .locator('.ww-reading .gw-asset, .ww-reading .ww-image-view')
+      .first()
+      .scrollIntoViewIfNeeded();
+    const photo = page.locator('.ww-reading img').first();
+    await expect
+      .poll(() => photo.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBeGreaterThan(0);
+    await page.screenshot({ path: '.verification/growi-inline-photo-mobile.png' });
   });
 });

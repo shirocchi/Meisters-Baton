@@ -213,6 +213,7 @@ export function WikiProvider({ children }: { children: ReactNode }) {
       void (async () => {
         if (lock.current) return;
         lock.current = true;
+        const failures: string[] = [];
         try {
           for (const recording of records) {
             if (cancelled || identityRef.current !== identity) break;
@@ -229,7 +230,11 @@ export function WikiProvider({ children }: { children: ReactNode }) {
               : automaticTarget(recording, sourcePages);
             if (!target?.page) continue;
             setBusy(`「${recording.title}」を${target.page.title}へ反映中`);
-            await integrate(recording, target.page, target.heading);
+            try {
+              await integrate(recording, target.page, target.heading);
+            } catch (e) {
+              failures.push(`「${recording.title}」：${(e as Error).message}`);
+            }
           }
         } catch (e) {
           if (identityRef.current === identity) setBusy((e as Error).message);
@@ -238,7 +243,7 @@ export function WikiProvider({ children }: { children: ReactNode }) {
           lock.current = false;
           if (cancelled) setCycle((n) => n + 1);
         }
-        if (!cancelled) setBusy('');
+        if (!cancelled) setBusy(failures.join(' / '));
       })();
     }, 900);
     return () => {

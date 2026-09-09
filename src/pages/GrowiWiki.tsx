@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   BookOpen,
   ChevronRight,
@@ -35,19 +35,21 @@ import {
   type WikiAsset,
   type WikiPage,
 } from '../domain/growiWiki';
-import { getReadingStep, propellerPages } from '../domain/propellerWiki';
+import { getReadingStep } from '../domain/propellerWiki';
+import { illustratedManual, readingStep } from '../domain/wikiReading';
 import { PropellerMonitor } from '../components/PropellerMonitor';
 import { useWiki } from '../wikiState';
 import { WikiEditor } from '../components/WikiEditor';
 import { WikiHistory } from '../components/WikiHistory';
 import { WikiOverview, RecordTile } from '../components/WikiOverview';
-import { RecordingEvidence, WorkshopMediaView } from '../components/WikiMedia';
+import { InlineRecording, RecordingEvidence, WorkshopMediaView } from '../components/WikiMedia';
 import { Modal } from '../components/ui';
 import type { Recording } from '../domain/types';
 import type { WorkshopMedia } from '../domain/wikiWorkshop';
 import '../styles-propeller-wiki.css';
 import '../styles-growi-wiki.css';
 import '../styles-wiki-workshop.css';
+import '../styles-wiki-reading.css';
 
 function Asset({
   asset,
@@ -209,7 +211,7 @@ function PageTree({
   }
   return <ul className="gw-tree-list">{branch('')}</ul>;
 }
-function WikiContent({
+const WikiContent = memo(function WikiContent({
   page,
   pages,
   assets,
@@ -217,6 +219,7 @@ function WikiContent({
   media = [],
   onEvidence,
   onEditSection,
+  recordings = [],
 }: {
   page: WikiPage;
   pages: WikiPage[];
@@ -225,6 +228,7 @@ function WikiContent({
   media?: WorkshopMedia[];
   onEvidence?: (id: string, time: number) => void;
   onEditSection?: (title: string) => void;
+  recordings?: Recording[];
 }) {
   const slugCounts = new Map<string, number>();
   const heading = (level: number, children: ReactNode) => {
@@ -265,6 +269,20 @@ function WikiContent({
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
       components={{
+        p: ({ node, children }) => {
+          const content = node?.children.filter((n) => n.type !== 'text' || n.value.trim());
+          const child = content?.length === 1 ? content[0] : undefined;
+          if (child?.type === 'element' && child.tagName === 'a') {
+            const href = String(child.properties.href ?? '');
+            if (href.startsWith('#evidence/') && !href.includes('?')) {
+              const id = decodeURIComponent(href.slice(10));
+              const recording = recordings.find((r) => r.id === id);
+              if (recording)
+                return <InlineRecording recording={recording} open={() => onEvidence?.(id, 0)} />;
+            }
+          }
+          return <p>{children}</p>;
+        },
         h1: ({ children }) => heading(1, children),
         h2: ({ children }) => heading(2, children),
         h3: ({ children }) => heading(3, children),
@@ -296,7 +314,16 @@ function WikiContent({
             );
           }
           const asset = wikiAssetFor(href, assets);
-          if (asset) return <Asset asset={asset} token={token} />;
+          if (asset)
+            return (
+              <Asset
+                asset={asset}
+                token={token}
+                inline={
+                  asset.contentType.startsWith('image/') || asset.contentType.startsWith('video/')
+                }
+              />
+            );
           const target = wikiLink(href, page, pages);
           return (
             <a
@@ -343,8 +370,9 @@ function WikiContent({
       {expandWikiLists(page.body, page, pages)}
     </Markdown>
   );
-}
+});
 
+const noMedia: WorkshopMedia[] = [];
 export function GrowiWikiPage() {
   const { auth, navigate, data } = useBaton();
   const wiki = useWiki();
@@ -363,23 +391,36 @@ export function GrowiWikiPage() {
   const id = decodeURIComponent(route[0].split('/')[2] || 'home');
   const page = pages.find((p) => p.id === id);
   const edit = wiki.edits.find((e) => e.page_id === id);
-  const media = edit?.media ?? [];
-  const events = id === 'home' ? wiki.edits.flatMap((e) => e.events) : (edit?.events ?? []);
-  const recordings = [
-    ...new Map(
-      events.map((e) => [
-        e.recordingId,
-        data.recordings.find((r) => r.id === e.recordingId) ?? e.recording,
-      ]),
-    ).values(),
-  ];
-  const openEvidence = (recordingId: string, time = 0) => {
-    const recording =
-      data.recordings.find((r) => r.id === recordingId) ??
-      wiki.edits.flatMap((e) => e.events).find((e) => e.recordingId === recordingId)?.recording;
-    if (recording) setEvidence({ recording, time });
-  };
-  const assets = archive?.pages.flatMap((p) => p.attachments) ?? [];
+  const media = edit?.media ?? noMedia;
+  const events = useMemo(
+    () => (id === 'home' ? wiki.edits.flatMap((e) => e.events) : (edit?.events ?? [])),
+    [id, wiki.edits, edit],
+  );
+  const recordings = useMemo(
+    () => [
+      ...new Map(
+        events.map((e) => [
+          e.recordingId,
+          data.recordings.find((r) => r.id === e.recordingId) ?? e.recording,
+        ]),
+      ).values(),
+    ],
+    [events, data.recordings],
+  );
+  const openEvidence = useCallback(
+    (recordingId: string, time = 0) => {
+      const recording =
+        data.recordings.find((r) => r.id === recordingId) ??
+        wiki.edits.flatMap((e) => e.events).find((e) => e.recordingId === recordingId)?.recording;
+      if (recording) setEvidence({ recording, time });
+    },
+    [data.recordings, wiki.edits],
+  );
+  const assets = useMemo(() => archive?.pages.flatMap((p) => p.attachments) ?? [], [archive]);
+  const readingPage = useMemo(
+    () => (page ? { ...page, body: illustratedManual(page, pages) } : undefined),
+    [page, pages],
+  );
   const matches = searchWiki(pages, query);
   useEffect(() => {
     setSource(false);
@@ -429,23 +470,7 @@ export function GrowiWikiPage() {
     };
   }, [page, source, mode, location.hash]);
   const chapter = toc[active]?.title ?? page?.title ?? '製作の全体像';
-  const mapping = /貼り合わせ|接着|フランジ/.test(chapter)
-    ? 'blade-bonding'
-    : /スピナー/.test(chapter)
-      ? 'spinner'
-      : /塗装|仕上げ/.test(chapter)
-        ? 'paint-masking'
-        : /回転|試験|安全/.test(chapter)
-          ? 'rotation-safety'
-          : /積層|外皮|真空/.test(chapter)
-            ? 'skin-lamination'
-            : /コア|ロハセル|ウェブ/.test(chapter)
-              ? 'core-fitting'
-              : /型|パテ/.test(chapter)
-                ? 'mould-finishing'
-                : 'process-map';
-  const monitorPage = propellerPages.find((p) => p.slug === mapping)!;
-  const step = monitorPage.steps[0];
+  const step = readingStep(chapter, page?.title);
   return (
     <div className="growi-wiki">
       <header className="gw-header">
@@ -701,19 +726,14 @@ export function GrowiWikiPage() {
                 </section>
               ) : (
                 <>
-                  {id === 'home' && (
-                    <WikiOverview
-                      openRecording={(r) => setEvidence({ recording: r, time: 0 })}
-                      renderAsset={(asset) => <Asset asset={asset} token={auth.token} inline />}
-                    />
-                  )}
-                  <div className="gw-markdown" ref={article}>
+                  <div className="gw-markdown ww-reading" ref={article}>
                     <WikiContent
-                      page={page}
+                      page={readingPage!}
                       pages={pages}
                       assets={assets}
                       token={auth.token}
                       media={media}
+                      recordings={recordings}
                       onEvidence={openEvidence}
                       onEditSection={!wiki.editError ? setEditing : undefined}
                     />
@@ -728,6 +748,12 @@ export function GrowiWikiPage() {
                       </>
                     )}
                   </div>
+                  {id === 'home' && (
+                    <WikiOverview
+                      openRecording={(r) => setEvidence({ recording: r, time: 0 })}
+                      renderAsset={(asset) => <Asset asset={asset} token={auth.token} inline />}
+                    />
+                  )}
                   {recordings.length > 0 && id !== 'home' && (
                     <section className="ww-related">
                       <h2>この工程の手元と判断</h2>
@@ -812,7 +838,7 @@ export function GrowiWikiPage() {
           ))}
         </aside>
       </div>
-      <PropellerMonitor step={step} index={0} count={monitorPage.steps.length} />
+      <PropellerMonitor step={step} index={active} count={Math.max(1, toc.length)} />
       {auth && page && editing !== null && (
         <WikiEditor
           page={page}
