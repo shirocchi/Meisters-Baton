@@ -11,6 +11,11 @@ import {
   List,
   LockKeyhole,
   Search,
+  Pencil,
+  History,
+  Images,
+  Maximize2,
+  RefreshCw,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -20,21 +25,29 @@ import rehypeSanitize from 'rehype-sanitize';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { useBaton } from '../state';
-import { loadGrowiWiki, loadWikiAsset } from '../lib/growiWiki';
+import { loadWikiAsset } from '../lib/growiWiki';
 import {
   expandWikiLists,
   searchWiki,
   wikiAssetFor,
   wikiLink,
   wikiRoute,
-  type WikiArchive,
   type WikiAsset,
   type WikiPage,
 } from '../domain/growiWiki';
 import { getReadingStep, propellerPages } from '../domain/propellerWiki';
 import { PropellerMonitor } from '../components/PropellerMonitor';
+import { useWiki } from '../wikiState';
+import { WikiEditor } from '../components/WikiEditor';
+import { WikiHistory } from '../components/WikiHistory';
+import { WikiOverview, RecordTile } from '../components/WikiOverview';
+import { RecordingEvidence, WorkshopMediaView } from '../components/WikiMedia';
+import { Modal } from '../components/ui';
+import type { Recording } from '../domain/types';
+import type { WorkshopMedia } from '../domain/wikiWorkshop';
 import '../styles-propeller-wiki.css';
 import '../styles-growi-wiki.css';
+import '../styles-wiki-workshop.css';
 
 function Asset({
   asset,
@@ -45,7 +58,23 @@ function Asset({
   token: string;
   inline?: boolean;
 }) {
-  const [requested, setRequested] = useState(inline);
+  const [requested, setRequested] = useState(false);
+  const [zoom, setZoom] = useState(false);
+  const placeholder = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!inline || requested) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setRequested(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '120px' },
+    );
+    if (placeholder.current) observer.observe(placeholder.current);
+    return () => observer.disconnect();
+  }, [inline, requested]);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ identity: string; url?: string; error?: string }>();
   const identity = `${token}:${asset.sha256}:${attempt}`;
@@ -70,7 +99,26 @@ function Asset({
   const current = result?.identity === identity ? result : undefined;
   if (current?.url) {
     if (inline && asset.contentType.startsWith('image/'))
-      return <img className="gw-image" src={current.url} alt={asset.name} loading="lazy" />;
+      return (
+        <span className="ww-image-view">
+          <img className="gw-image" src={current.url} alt={asset.name} loading="lazy" />
+          <button
+            className="ww-zoom"
+            onClick={() => setZoom(true)}
+            aria-label={`${asset.name}を拡大`}
+          >
+            <Maximize2 size={18} />
+          </button>
+          {zoom && (
+            <Modal title={asset.name} close={() => setZoom(false)} wide>
+              <img className="ww-image-full" src={current.url} alt={asset.name} />
+              <a className="button" href={current.url} download={asset.name}>
+                画像を保存
+              </a>
+            </Modal>
+          )}
+        </span>
+      );
     if (inline && asset.contentType.startsWith('video/'))
       return (
         <video
@@ -90,7 +138,7 @@ function Asset({
     );
   }
   return (
-    <span className="gw-asset">
+    <span className="gw-asset" ref={placeholder}>
       <button
         disabled={requested && !current?.error}
         onClick={() => {
@@ -166,11 +214,17 @@ function WikiContent({
   pages,
   assets,
   token,
+  media = [],
+  onEvidence,
+  onEditSection,
 }: {
   page: WikiPage;
   pages: WikiPage[];
   assets: WikiAsset[];
   token: string;
+  media?: WorkshopMedia[];
+  onEvidence?: (id: string, time: number) => void;
+  onEditSection?: (title: string) => void;
 }) {
   const slugCounts = new Map<string, number>();
   const heading = (level: number, children: ReactNode) => {
@@ -194,6 +248,15 @@ function WikiContent({
     return (
       <Tag id={id} data-wiki-heading={level}>
         {children}
+        {onEditSection && (
+          <button
+            className="ww-section-edit"
+            onClick={() => onEditSection(plain(children))}
+            aria-label={`${plain(children)}を編集`}
+          >
+            <Pencil size={16} />
+          </button>
+        )}
       </Tag>
     );
   };
@@ -207,6 +270,31 @@ function WikiContent({
         h3: ({ children }) => heading(3, children),
         h4: ({ children }) => heading(4, children),
         a: ({ href = '', children }) => {
+          if (href.startsWith('#evidence/')) {
+            const [id, query] = href.slice(10).split('?');
+            return (
+              <button
+                className="ww-evidence-link"
+                onClick={() =>
+                  onEvidence?.(
+                    decodeURIComponent(id),
+                    Number(new URLSearchParams(query).get('time') ?? 0),
+                  )
+                }
+              >
+                <PlayIcon />
+                {children}
+              </button>
+            );
+          }
+          if (href.startsWith('#media/')) {
+            const found = media.find((m) => m.id === href.slice(7));
+            return found ? (
+              <WorkshopMediaView media={found} />
+            ) : (
+              <span>添付の参照が見つかりません。</span>
+            );
+          }
           const asset = wikiAssetFor(href, assets);
           if (asset) return <Asset asset={asset} token={token} />;
           const target = wikiLink(href, page, pages);
@@ -220,6 +308,14 @@ function WikiContent({
           );
         },
         img: ({ src = '', alt = '' }) => {
+          if (src.startsWith('#media/')) {
+            const found = media.find((m) => m.id === src.slice(7));
+            return found ? (
+              <WorkshopMediaView media={found} />
+            ) : (
+              <span>画像の参照が見つかりません。</span>
+            );
+          }
           const asset = wikiAssetFor(src, assets);
           return asset ? (
             <Asset asset={asset} token={token} inline />
@@ -250,40 +346,39 @@ function WikiContent({
 }
 
 export function GrowiWikiPage() {
-  const { auth, navigate } = useBaton();
-  const [result, setResult] = useState<{
-    identity: string;
-    archive?: WikiArchive;
-    error?: string;
-  }>();
-  const [attempt, setAttempt] = useState(0);
+  const { auth, navigate, data } = useBaton();
+  const wiki = useWiki();
+  const [mode, setMode] = useState<'read' | 'media' | 'history'>('read');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState<{ recording: Recording; time: number }>();
   const [query, setQuery] = useState('');
   const [treeOpen, setTreeOpen] = useState(false);
   const [source, setSource] = useState(false);
   const [toc, setToc] = useState<{ id: string; title: string; level: number }[]>([]);
   const [active, setActive] = useState(0);
   const article = useRef<HTMLDivElement>(null);
-  const identity = auth ? `${auth.user.id}:${auth.user.teamId}:${auth.token}:${attempt}` : '';
-  useEffect(() => {
-    if (!auth) return;
-    const controller = new AbortController();
-    void loadGrowiWiki(auth.token, controller.signal)
-      .then((archive) => {
-        if (!controller.signal.aborted) setResult({ identity, archive });
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setResult({ identity, error: (e as Error).message });
-      });
-    return () => controller.abort();
-  }, [identity]);
-  const current = result?.identity === identity ? result : undefined;
-  const archive = auth ? current?.archive : undefined;
-  const pages = archive
-    ? [...(archive.home ? [archive.home] : []), ...archive.pages, ...(archive.diary ?? [])]
-    : [];
+  const archive = wiki.archive;
+  const pages = wiki.pages;
   const route = location.hash.slice(1).split('?');
   const id = decodeURIComponent(route[0].split('/')[2] || 'home');
   const page = pages.find((p) => p.id === id);
+  const edit = wiki.edits.find((e) => e.page_id === id);
+  const media = edit?.media ?? [];
+  const events = id === 'home' ? wiki.edits.flatMap((e) => e.events) : (edit?.events ?? []);
+  const recordings = [
+    ...new Map(
+      events.map((e) => [
+        e.recordingId,
+        data.recordings.find((r) => r.id === e.recordingId) ?? e.recording,
+      ]),
+    ).values(),
+  ];
+  const openEvidence = (recordingId: string, time = 0) => {
+    const recording =
+      data.recordings.find((r) => r.id === recordingId) ??
+      wiki.edits.flatMap((e) => e.events).find((e) => e.recordingId === recordingId)?.recording;
+    if (recording) setEvidence({ recording, time });
+  };
   const assets = archive?.pages.flatMap((p) => p.attachments) ?? [];
   const matches = searchWiki(pages, query);
   useEffect(() => {
@@ -332,7 +427,7 @@ export function GrowiWikiPage() {
       cancelAnimationFrame(frame);
       window.removeEventListener('scroll', schedule);
     };
-  }, [page, source, location.hash]);
+  }, [page, source, mode, location.hash]);
   const chapter = toc[active]?.title ?? page?.title ?? '製作の全体像';
   const mapping = /貼り合わせ|接着|フランジ/.test(chapter)
     ? 'blade-bonding'
@@ -436,11 +531,11 @@ export function GrowiWikiPage() {
                 ログインして技術Wikiを読む
               </button>
             </section>
-          ) : current?.error ? (
+          ) : wiki.error ? (
             <section className="gw-access">
               <h2>技術Wikiを読み込めませんでした</h2>
-              <p role="alert">{current.error}</p>
-              <button className="button" onClick={() => setAttempt((n) => n + 1)}>
+              <p role="alert">{wiki.error}</p>
+              <button className="button" onClick={() => void wiki.refresh()}>
                 再試行
               </button>
             </section>
@@ -480,13 +575,44 @@ export function GrowiWikiPage() {
                 <span>
                   {page.author} · {new Date(page.updatedAt).toLocaleDateString('ja-JP')}
                 </span>
-                <button aria-pressed={!source} onClick={() => setSource(false)}>
+                <button
+                  aria-pressed={!source && mode === 'read'}
+                  onClick={() => {
+                    setSource(false);
+                    setMode('read');
+                  }}
+                >
                   <BookOpen size={15} />
-                  表示
+                  手順
                 </button>
                 <button aria-pressed={source} onClick={() => setSource(true)}>
                   <Code size={15} />
                   原文
+                </button>
+                <button
+                  aria-pressed={!source && mode === 'media'}
+                  onClick={() => {
+                    setSource(false);
+                    setMode('media');
+                  }}
+                >
+                  <Images size={16} />
+                  写真・動画
+                </button>
+                <button disabled={!!wiki.editError || !auth} onClick={() => setEditing('')}>
+                  <Pencil size={16} />
+                  編集
+                </button>
+                <button
+                  aria-pressed={!source && mode === 'history'}
+                  disabled={!!wiki.editError}
+                  onClick={() => {
+                    setSource(false);
+                    setMode('history');
+                  }}
+                >
+                  <History size={16} />
+                  履歴
                 </button>
                 {page.id !== 'home' && !page.id.startsWith('diary-') && (
                   <a
@@ -499,27 +625,126 @@ export function GrowiWikiPage() {
                   </a>
                 )}
               </div>
+              {wiki.busy && (
+                <p className="ww-sync" role="status">
+                  <RefreshCw size={15} />
+                  {wiki.busy}
+                  <button onClick={() => void wiki.refresh()}>更新を確認</button>
+                </p>
+              )}
+              {wiki.editError && (
+                <p className="ww-sync" role="alert">
+                  {wiki.editError}
+                  <button onClick={() => void wiki.refresh()}>再接続</button>
+                </p>
+              )}
+              {edit && (
+                <p className="ww-revision-note">
+                  版 {edit.version} · {edit.reason} · 履歴から元に戻せます
+                </p>
+              )}
               {source ? (
                 <>
                   <h2>{page.title} — 原文</h2>
                   <pre className="gw-source">{page.body}</pre>
                 </>
-              ) : (
-                <div className="gw-markdown" ref={article}>
-                  <WikiContent page={page} pages={pages} assets={assets} token={auth.token} />
-                  {!page.body.trim() && (
-                    <>
-                      <h2>{page.title}</h2>
-                      <p>
-                        {page.unavailable
-                          ? '元Wikiのアクセス制限により本文を取得できていません。元ページの閲覧権限を確認してください。'
-                          : '元Wikiでは本文のないページです。'}
-                      </p>
-                    </>
+              ) : mode === 'history' ? (
+                <WikiHistory
+                  page={page}
+                  render={(body) => (
+                    <WikiContent
+                      page={{ ...page, body }}
+                      pages={pages}
+                      assets={assets}
+                      token={auth.token}
+                      media={media}
+                      onEvidence={openEvidence}
+                    />
                   )}
-                </div>
+                />
+              ) : mode === 'media' ? (
+                <section className="ww-gallery-section">
+                  <h2>{page.title}の写真・動画</h2>
+                  <p>写真は拡大して手元を確認できます。作業記録は場面ごとに再生できます。</p>
+                  <div className="ww-record-grid">
+                    {recordings.map((r) => (
+                      <RecordTile
+                        key={r.id}
+                        recording={r}
+                        onOpen={() => setEvidence({ recording: r, time: 0 })}
+                      />
+                    ))}
+                  </div>
+                  <div className="ww-gallery">
+                    {[
+                      ...new Map(
+                        (id === 'home' ? assets : page.attachments)
+                          .filter((a) => a.sha256)
+                          .map((a) => [a.sha256, a]),
+                      ).values(),
+                    ].map((a) => (
+                      <figure key={a.id}>
+                        <Asset asset={a} token={auth.token} inline />
+                        <figcaption>{a.name}</figcaption>
+                      </figure>
+                    ))}
+                    {media.map((m) => (
+                      <figure key={m.id}>
+                        <WorkshopMediaView media={m} />
+                        <figcaption>{m.name}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                  {!recordings.length && !page.attachments.length && !media.length && (
+                    <p>まだ写真・動画がありません。「編集」から画像・動画を追加できます。</p>
+                  )}
+                </section>
+              ) : (
+                <>
+                  {id === 'home' && (
+                    <WikiOverview
+                      openRecording={(r) => setEvidence({ recording: r, time: 0 })}
+                      renderAsset={(asset) => <Asset asset={asset} token={auth.token} inline />}
+                    />
+                  )}
+                  <div className="gw-markdown" ref={article}>
+                    <WikiContent
+                      page={page}
+                      pages={pages}
+                      assets={assets}
+                      token={auth.token}
+                      media={media}
+                      onEvidence={openEvidence}
+                      onEditSection={!wiki.editError ? setEditing : undefined}
+                    />
+                    {!page.body.trim() && (
+                      <>
+                        <h2>{page.title}</h2>
+                        <p>
+                          {page.unavailable
+                            ? '元Wikiのアクセス制限により本文を取得できていません。元ページの閲覧権限を確認してください。'
+                            : '元Wikiでは本文のないページです。'}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  {recordings.length > 0 && id !== 'home' && (
+                    <section className="ww-related">
+                      <h2>この工程の手元と判断</h2>
+                      <div className="ww-record-grid">
+                        {recordings.map((r) => (
+                          <RecordTile
+                            key={r.id}
+                            recording={r}
+                            onOpen={() => setEvidence({ recording: r, time: 0 })}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
-              {page.attachments.length > 0 && (
+              {mode === 'read' && page.attachments.length > 0 && (
                 <section className="gw-attachments">
                   <h2>
                     <Download size={18} />
@@ -588,6 +813,34 @@ export function GrowiWikiPage() {
         </aside>
       </div>
       <PropellerMonitor step={step} index={0} count={monitorPage.steps.length} />
+      {auth && page && editing !== null && (
+        <WikiEditor
+          page={page}
+          version={edit?.version ?? 0}
+          initialSection={editing}
+          close={() => setEditing(null)}
+          render={(body, editorMedia) => (
+            <WikiContent
+              page={{ ...page, body }}
+              pages={pages}
+              assets={assets}
+              token={auth.token}
+              media={editorMedia}
+              onEvidence={openEvidence}
+            />
+          )}
+        />
+      )}
+      {auth && evidence && (
+        <RecordingEvidence
+          recording={evidence.recording}
+          time={evidence.time}
+          close={() => setEvidence(undefined)}
+        />
+      )}
     </div>
   );
+}
+function PlayIcon() {
+  return <span aria-hidden="true">▶</span>;
 }

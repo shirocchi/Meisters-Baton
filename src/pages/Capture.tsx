@@ -36,7 +36,7 @@ import { inspectVideo } from '../lib/media';
 import { api } from '../lib/api';
 const categories = ['プロペラ', '翼', '機体・フレーム', '電装・制御', '工具・治具', 'その他'];
 export function CapturePage() {
-  const { data, settings, mutate, navigate, toast } = useBaton();
+  const { data, settings, auth, mutate, navigate, toast } = useBaton();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('プロペラ');
   const [notes, setNotes] = useState('');
@@ -330,6 +330,12 @@ export function CapturePage() {
               <p>
                 <Save size={15} />
                 最初に、この端末へ保存します。
+                {auth && (
+                  <>
+                    <br />
+                    技術Wikiを使える工房では、内容を該当工程へ自動反映し、50MB以下の動画も工房内で共有します。
+                  </>
+                )}
               </p>
               <button className="button primary" onClick={() => void create()} disabled={busy}>
                 {busy ? '保存しています' : '保存して、判断を残す'}

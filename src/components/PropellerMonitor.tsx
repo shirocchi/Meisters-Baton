@@ -197,7 +197,20 @@ export function PropellerMonitor({
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(() => {
+    try {
+      return localStorage.getItem('baton-monitor-minimized') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('baton-monitor-minimized', String(minimized));
+    } catch {
+      /* UI preference only. */
+    }
+  }, [minimized]);
   const [playing, setPlaying] = useState(
     () => !matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
