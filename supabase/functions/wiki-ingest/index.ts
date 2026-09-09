@@ -26,7 +26,8 @@ Deno.serve(async (req) => {
     if (
       error ||
       !session ||
-      Date.parse(session.expiresAt) < Date.now() ||
+      !Number.isFinite(Date.parse(session.expiresAt)) ||
+      Date.parse(session.expiresAt) <= Date.now() ||
       (await digest(new TextEncoder().encode(token).buffer)) !== session.tokenHash
     )
       return json({ error: 'Unauthorized' }, 401);
@@ -37,13 +38,16 @@ Deno.serve(async (req) => {
       return json({ error: 'Outside import manifest' }, 403);
     const { data: settings, error: bucketError } = await db.storage.getBucket(bucket);
     if (bucketError || settings.public) return json({ error: 'Private bucket required' }, 409);
-    const { data: existing, error: readError } = await db.storage.from(bucket).download(sha);
-    if (existing) {
+    const { data: entries, error: listError } = await db.storage
+      .from(bucket)
+      .list('', { search: sha, limit: 2 });
+    if (listError || !entries) return json({ error: 'Cannot inspect storage' }, 502);
+    if (entries.some((entry) => entry.name === sha)) {
+      const { data: existing, error: readError } = await db.storage.from(bucket).download(sha);
+      if (readError || !existing) return json({ error: 'Cannot read existing object' }, 502);
       const bytes = await existing.arrayBuffer();
       return json({ sha256: await digest(bytes), bytes: bytes.byteLength, existing: true });
     }
-    if (readError && !['404', '400'].includes(String(readError.statusCode)))
-      return json({ error: 'Cannot inspect storage' }, 502);
     const reader = req.body?.getReader();
     if (!reader) return json({ error: 'Missing body' }, 400);
     const chunks: Uint8Array[] = [];
