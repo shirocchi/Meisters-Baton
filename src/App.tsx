@@ -15,6 +15,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { BatonProvider, useBaton } from './state';
+import { WikiProvider } from './wikiState';
 import { Badge, Logo } from './components/ui';
 import { CapturePage, InterviewPage } from './pages/Capture';
 import { ArticlePage, LibraryPage, AskPage } from './pages/Knowledge';
@@ -356,7 +357,9 @@ function Shell() {
 export function App() {
   return (
     <BatonProvider>
-      <Shell />
+      <WikiProvider>
+        <Shell />
+      </WikiProvider>
     </BatonProvider>
   );
 }
