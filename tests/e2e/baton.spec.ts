@@ -202,7 +202,7 @@ test('the propeller Wiki package is imported locally into the new page tree', as
   await writeFile(packagePath, JSON.stringify(backup), 'utf8');
 
   await page.goto('/#library');
-  await page.getByRole('button', { name: '記録から作ったWiki' }).click();
+  await page.getByRole('link', { name: '記録から作ったWiki' }).click();
   await expect(page.getByText('取込待ち', { exact: true })).toBeVisible();
   await page.getByLabel('Wiki下書きJSONを選択').setInputFiles(packagePath);
   await expect(page.getByRole('status')).toContainText(

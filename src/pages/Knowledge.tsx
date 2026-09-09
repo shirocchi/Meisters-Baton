@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -39,6 +39,9 @@ import type { Article, Claim, Evidence, SearchAnswer } from '../domain/types';
 import { downloadFile } from '../lib/media';
 import { api } from '../lib/api';
 import { PropellerWikiPage } from './PropellerWiki';
+const GrowiWikiPage = lazy(() =>
+  import('./GrowiWiki').then((module) => ({ default: module.GrowiWikiPage })),
+);
 import { importBackup, mergeTeamData } from '../lib/storage';
 const kindNames = {
   step: '作業の手順',
@@ -48,8 +51,12 @@ const kindNames = {
 export function LibraryPage() {
   return location.hash.startsWith('#library/records') ? (
     <RecordedLibraryPage />
-  ) : (
+  ) : location.hash.startsWith('#library/propeller/') ? (
     <PropellerWikiPage />
+  ) : (
+    <Suspense fallback={<p role="status">技術Wikiを読み込んでいます…</p>}>
+      <GrowiWikiPage />
+    </Suspense>
   );
 }
 function RecordedLibraryPage() {

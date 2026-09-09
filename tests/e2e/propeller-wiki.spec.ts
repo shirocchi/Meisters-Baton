@@ -6,7 +6,7 @@ test('standard wiki exists without an import and the monitor follows reading in 
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/#library');
+  await page.goto('/#library/propeller/process-map');
   await expect(page.getByRole('heading', { name: 'プロペラ製作Wiki', exact: true })).toBeVisible();
   await expect(
     page.getByRole('button', { name: /初期プロペラWiki|Wiki下書き.*取り込む/ }),
@@ -37,7 +37,7 @@ test('standard wiki exists without an import and the monitor follows reading in 
 test('monitor can pause, seek, drag, minimize and reset without changing the page', async ({
   page,
 }) => {
-  await page.goto('/#library');
+  await page.goto('/#library/propeller/process-map');
   const monitor = page.getByLabel('工程解説モニター', { exact: true });
   await page.getByLabel('解説アニメーションを一時停止').click();
   const slider = page.getByLabel('解説アニメーションの再生位置');
@@ -70,7 +70,7 @@ test('mobile tree, touch movement, reduced motion and accessibility', async ({ b
     reducedMotion: 'reduce',
   });
   const page = await context.newPage();
-  await page.goto('/#library');
+  await page.goto('/#library/propeller/process-map');
   await expect(page.getByLabel('解説アニメーションを再生')).toBeVisible();
   await page.getByRole('button', { name: 'ページツリー', exact: true }).click();
   await page
@@ -123,7 +123,7 @@ test('signed-out visitors never request private sources, and recorded knowledge 
     if (/propeller_wiki_sources|propeller-wiki-media/.test(request.url()))
       requests.push(request.url());
   });
-  await page.goto('/#library');
+  await page.goto('/#library/propeller/process-map');
   await page.getByRole('region', { name: 'この工程の一次資料' }).scrollIntoViewIfNeeded();
   await expect(page.getByRole('button', { name: 'ログインして一次資料を読む' })).toBeVisible();
   expect(requests).toEqual([]);
