@@ -13,3 +13,14 @@ Mobile application for capturing craft knowledge through recorded work, question
 - Run typecheck, domain/API tests, build, and browser end-to-end checks for the primary flow before delivery.
 - Treat the 2026-09-06–07 beta as pre-event work. Preserve an accurate disclosure and do not claim it was built during the September 15 event.
 - No changes to the parent Obsidian vault except explicitly scoped project/session notes. Do not commit private Vault documents.
+
+## Parallel development and integration
+
+- Use one issue, one owner, one branch, and one worktree for each independently reviewable change. A worktree is an isolated snapshot; it does not automatically receive changes merged elsewhere.
+- At the start of work, record the target branch and base commit SHA in the issue or pull request. List dependent pull requests and likely overlapping files or behavior.
+- A stale base is acceptable for exploratory work and checkpoint commits, but a pull request must not be marked ready, merged, or deployed while it is still based on outdated application state.
+- If another change is a prerequisite, keep the dependent pull request in draft and label it `Depends on #<PR>`. After the prerequisite merges, update the dependent branch from the latest target branch before final implementation and review.
+- Immediately before final verification, refresh the target branch and rebase or merge it into the working branch. If the target branch changes again after verification, repeat the synchronization and affected checks.
+- Resolve conflicts by preserving the current target-branch behavior and applying only the intended new delta. Do not restore an older whole-file snapshot or choose `ours`/`theirs` without reviewing the semantic result.
+- Review the final diff against the refreshed target branch and test the combined application state, including regressions in behavior changed by concurrent work. Passing tests on the isolated pre-sync branch is not sufficient.
+- Merge order follows dependency order, not completion time. The owner of the later or dependent pull request is responsible for proving that the combined result retains already-merged progress.
