@@ -112,7 +112,7 @@ test('private sources, attachment retry and logout work without persisting sourc
     if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 204 });
     return route.fulfill({ status: 404, json: { error: 'Unexpected fixture request' } });
   });
-  await page.goto('/#library');
+  await page.goto('/#library/propeller/process-map');
   await page.getByLabel('モニターを最小化').click();
   await page.getByText('試験用の確認項目', { exact: true }).click();
   await expect(page.getByText('非公開テスト資料4819', { exact: true })).toBeVisible();
@@ -144,7 +144,7 @@ test('private sources, attachment retry and logout work without persisting sourc
   await page.getByRole('button', { name: '接続を終了', exact: true }).click();
   await expect(page.getByRole('button', { name: 'チームに接続', exact: true })).toBeVisible();
   const count = sourceRequests;
-  await page.goto('/#library');
+  await page.goto('/#library/propeller/process-map');
   await expect(page.getByRole('button', { name: 'ログインして一次資料を読む' })).toBeVisible();
   expect(sourceRequests).toBe(count);
 });

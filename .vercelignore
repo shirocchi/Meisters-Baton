@@ -2,6 +2,8 @@
 .verification/
 .git/
 .discord-archives/
+.data/
+data/
 .env
 .env.*
 node_modules/
