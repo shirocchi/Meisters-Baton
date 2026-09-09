@@ -625,7 +625,7 @@ export function createApp(options: AppOptions = {}) {
     app.use(express.static(serveDir, { index: false, dotfiles: 'deny', maxAge: 3600_000 }));
     app.get('/{*path}', (_req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(join(serveDir, 'index.html'));
+      res.sendFile('index.html', { root: serveDir, dotfiles: 'deny' });
     });
   }
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

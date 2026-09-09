@@ -196,9 +196,9 @@ describe('connection URL boundaries', () => {
       expect(() => validateApiBaseUrl(value), value).toThrow();
   });
 
-  it('requires a complete HTTPS server origin in native apps', () => {
+  it('allows no AI server and requires HTTPS when a native app configures one', () => {
     vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
-    expect(() => validateApiBaseUrl('')).toThrow('HTTPS');
+    expect(validateApiBaseUrl('')).toBe('');
     expect(() => validateApiBaseUrl('http://localhost:8787')).toThrow('HTTPS');
     expect(validateApiBaseUrl('https://baton.example.com')).toBe('https://baton.example.com');
   });

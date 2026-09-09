@@ -3,6 +3,7 @@ import type { AuthSession, Settings, TeamData } from './domain/types';
 import { createDemoData } from './domain';
 import { loadData, loadSettings, saveData, saveSettings } from './lib/storage';
 import { setAuthSession } from './lib/api';
+import { isSupabaseConfigured, onSupabaseAuthChange, restoreSupabaseAuth } from './lib/supabase';
 type Store = {
   data: TeamData;
   settings: Settings;
@@ -46,6 +47,7 @@ export function BatonProvider({ children }: { children: ReactNode }) {
         if (mounted) {
           dataRef.current = value;
           setData(value);
+          settingsRef.current = preferences;
           setSettings(preferences);
         }
       })
@@ -65,6 +67,32 @@ export function BatonProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('offline', off);
     };
   }, []);
+  useEffect(() => {
+    if (!settings || !isSupabaseConfigured()) return;
+    let active = true;
+    const refresh = () => {
+      void restoreSupabaseAuth()
+        .then((next) => {
+          if (!active) return;
+          setAuthSession(next, settings.apiBaseUrl);
+          updateAuth(next);
+        })
+        .catch((cause) => {
+          if (!active) return;
+          setAuthSession(null);
+          updateAuth(null);
+          setNotice(
+            cause instanceof Error ? cause.message : 'ログイン状態を確認できませんでした。',
+          );
+        });
+    };
+    refresh();
+    const unsubscribe = onSupabaseAuthChange(refresh);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [settings?.apiBaseUrl]);
   const mutate = (fn: (data: TeamData) => TeamData) => {
     const operation = chain.current.then(async () => {
       if (!dataRef.current) return;

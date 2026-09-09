@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 async function checkAccessible(page: Page) {
   const result = await new AxeBuilder({ page })
@@ -25,9 +25,9 @@ test('mobile: a new expert answer becomes reviewed searchable knowledge and surv
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: '工房の記録', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '作業を記録', exact: true })).toBeVisible();
+  await expect(page.getByLabel('工房の知識を検索')).toBeVisible();
   await expect(page.getByText('その手の「なぜ」を、')).toHaveCount(0);
-  await page.getByRole('button', { name: '今日の作業を残す' }).click();
+  await page.getByRole('button', { name: '作業を記録', exact: true }).click();
   await page.getByLabel(/作業の名前/).fill('試験用治具の引き継ぎ');
   await page.getByLabel(/作業メモ/).fill('青い印を確認する工程。練習用のテスト記録です。');
   await page.getByRole('button', { name: '保存して、判断を残す' }).click();
@@ -169,6 +169,54 @@ test('sample records stay labeled and local backup can be restored without dupli
   await page.getByLabel('サンプルを表示する', { exact: true }).uncheck();
   await page.goto('/#library/records');
   await expect(page.locator('.wiki-row')).toHaveCount(0);
+});
+
+test('the propeller Wiki package is imported locally into the new page tree', async ({ page }) => {
+  await page.goto('/#settings');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'JSONを書き出す', exact: true }).click();
+  const file = await download;
+  await mkdir('test-results/backups', { recursive: true });
+  const seedPath = 'test-results/backups/wiki-seed.json';
+  const packagePath = 'test-results/backups/propeller-wiki.json';
+  await file.saveAs(seedPath);
+
+  const backup = JSON.parse(await readFile(seedPath, 'utf8'));
+  const article = structuredClone(backup.data.articles[0]);
+  const recording = structuredClone(backup.data.recordings[0]);
+  const originalRecordingId = recording.id;
+  recording.id = 'recording-discord-import-e2e';
+  recording.isDemo = false;
+  recording.analysis.mode = 'manual';
+  article.id = 'article-discord-import-e2e';
+  article.recordingId = recording.id;
+  article.title = 'プロペラWiki取込テスト';
+  article.author = 'Discordアーカイブから仮整理';
+  article.isDemo = false;
+  const replaceRecordingId = (value: unknown): unknown =>
+    JSON.parse(JSON.stringify(value).replaceAll(originalRecordingId, recording.id));
+  article.claims = replaceRecordingId(article.claims);
+  article.revisions = replaceRecordingId(article.revisions);
+  backup.data.recordings = [recording];
+  backup.data.articles = [article];
+  await writeFile(packagePath, JSON.stringify(backup), 'utf8');
+
+  await page.goto('/#library');
+  await page.getByRole('button', { name: '記録から作ったWiki' }).click();
+  await expect(page.getByText('取込待ち', { exact: true })).toBeVisible();
+  await page.getByLabel('Wiki下書きJSONを選択').setInputFiles(packagePath);
+  await expect(page.getByRole('status')).toContainText(
+    'プロペラWikiの下書き1本をこの端末へ追加しました。',
+  );
+  await expect(page.getByText('1本の下書き', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /プロペラ製作Wiki/ })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'プロペラWiki取込テスト', exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'プロペラWiki取込テスト', exact: true }),
+  ).toBeVisible();
 });
 
 test('working screens fit narrow phones and have accessible names and text contrast', async ({

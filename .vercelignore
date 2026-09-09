@@ -1,0 +1,12 @@
+.codex-tmp/
+.verification/
+.git/
+.discord-archives/
+.env
+.env.*
+node_modules/
+test-results/
+playwright-report/
+android/
+ios/
+docs/

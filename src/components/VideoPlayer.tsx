@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Film, LoaderCircle } from 'lucide-react';
 import type { Recording } from '../domain/types';
 import { getMedia, putMedia } from '../lib/storage';
-import { fetchRemoteMedia } from '../lib/api';
+import { downloadTeamMedia } from '../lib/supabase';
 import { useBaton } from '../state';
 import { CraftIllustration } from './ui';
 export function VideoPlayer({ recording, time = 0 }: { recording: Recording; time?: number }) {
-  const { settings, auth } = useBaton();
+  const { auth } = useBaton();
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ export function VideoPlayer({ recording, time = 0 }: { recording: Recording; tim
     (async () => {
       let blob = recording.mediaId ? await getMedia(recording.mediaId) : undefined;
       if (!blob && recording.remoteMediaId && auth) {
-        blob = await fetchRemoteMedia(settings, recording.remoteMediaId);
+        blob = await downloadTeamMedia(auth, recording.remoteMediaId);
         if (recording.mediaId) await putMedia(blob, recording.mediaId);
       }
       if (blob && !disposed) {

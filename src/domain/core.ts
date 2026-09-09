@@ -9,7 +9,18 @@ import type {
 } from './types';
 
 export function makeId(prefix = 'id'): string {
-  return `${prefix}_${crypto.randomUUID()}`;
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi.randomUUID === 'function') return `${prefix}_${cryptoApi.randomUUID()}`;
+
+  // randomUUID is unavailable on plain-HTTP LAN origins even though
+  // getRandomValues remains available. Keep local demos working without
+  // weakening IDs to Math.random.
+  const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+  const uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return `${prefix}_${uuid}`;
 }
 
 export function formatTime(seconds: number): string {
@@ -81,6 +92,20 @@ export function validateEvidence(evidence: Evidence, recordings: Recording[]): s
   const recording = recordings.find((item) => item.id === evidence.recordingId);
   if (!recording) return ['根拠の収録が見つかりません。'];
   if (!evidence.quote?.trim()) errors.push('根拠の引用文がありません。');
+  if (evidence.sourceUrl) {
+    try {
+      const url = new URL(evidence.sourceUrl);
+      if (url.protocol !== 'https:') errors.push('根拠リンクはHTTPSである必要があります。');
+    } catch {
+      errors.push('根拠リンクの形式が不正です。');
+    }
+  }
+  if (
+    evidence.sourceAttachments?.some(
+      (attachment) => !/^[a-f0-9]{64}$/.test(attachment.sha256) || attachment.bytes < 0,
+    )
+  )
+    errors.push('根拠添付の検証情報が不正です。');
   if (
     evidence.time !== undefined &&
     (!Number.isFinite(evidence.time) || evidence.time < 0 || evidence.time > recording.duration)

@@ -26,3 +26,7 @@ ios/App/build/
 *.p12
 *.mobileprovision
 .verification/
+.discord-archives/
+.codex-tmp/
+
+.vercel/

@@ -73,6 +73,20 @@ const evidence = object({
   time: optional(number()),
   answerId: optional(id),
   quote: text(20000, true),
+  sourceLabel: optional(text(1000, true)),
+  sourceUrl: optional(text(2000, true)),
+  sourceAttachments: optional(
+    array(
+      object({
+        filename: text(1000, true),
+        mediaPath: text(2000, true),
+        contentType: text(200, true),
+        bytes: number(0, 1024 * 1024 * 1024),
+        sha256: text(64, true),
+      }),
+      100,
+    ),
+  ),
 });
 const claim = object({
   id,
