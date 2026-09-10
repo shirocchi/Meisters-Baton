@@ -39,6 +39,10 @@ import type { Article, Claim, Evidence, SearchAnswer } from '../domain/types';
 import { downloadFile } from '../lib/media';
 import { api } from '../lib/api';
 import { PropellerWikiPage } from './PropellerWiki';
+import { useWiki } from '../wikiState';
+const WikiAtlasPage = lazy(() =>
+  import('./WikiAtlas').then((module) => ({ default: module.WikiAtlasPage })),
+);
 const GrowiWikiPage = lazy(() =>
   import('./GrowiWiki').then((module) => ({ default: module.GrowiWikiPage })),
 );
@@ -49,6 +53,19 @@ const kindNames = {
   warning: '注意・確認したいこと',
 };
 export function LibraryPage() {
+  const wiki = useWiki();
+  const path = location.hash.split('?')[0];
+  const atlasStage = wiki.archive?.atlas?.stages.find(
+    (s) => path === `#library/atlas/${s.id}` || path === `#library/wiki/${s.pageId}`,
+  );
+  if (wiki.archive?.atlas && (path === '#library' || path === '#library/' || atlasStage)) {
+    const stageId = atlasStage?.id ?? wiki.archive.atlas.stages[0].id;
+    return (
+      <Suspense fallback={<p role="status">立体図鑑を読み込んでいます…</p>}>
+        <WikiAtlasPage key={stageId} stageId={stageId} />
+      </Suspense>
+    );
+  }
   return location.hash.startsWith('#library/records') ? (
     <RecordedLibraryPage />
   ) : location.hash.startsWith('#library/propeller/') ? (

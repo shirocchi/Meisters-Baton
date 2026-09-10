@@ -1,0 +1,109 @@
+<div id="meister-propeller-assembly">
+  <div class="viz-controls">
+    <button class="btn" type="button" data-view="body" aria-pressed="true">ブレード本体</button>
+    <button class="btn" type="button" data-view="local" aria-pressed="false">内部構造の立体</button>
+    <button class="btn" type="button" data-view="section" aria-pressed="false">翼型断面</button>
+    <button class="btn" type="button" data-action="root" aria-pressed="false">根元を拡大</button>
+    <button class="btn" type="button" data-action="learn" aria-pressed="false">部材を知る</button>
+  </div>
+  <div class="model-stage">
+    <canvas
+      role="img"
+      aria-label="下に置いたupper一式に、上からunderを被せる模型。ウェブ材・ペラスパー・桁リブはupperに固定。部材を知るボタンで説明を表示できます。"
+    ></canvas>
+    <svg class="part-lines" aria-hidden="true"></svg>
+    <div class="part-labels" hidden></div>
+  </div>
+  <div class="viz-controls">
+    <label class="form-label"
+      >左右回転<input
+        class="form-range"
+        data-control="yaw"
+        type="range"
+        min="-180"
+        max="180"
+        value="-12"
+        aria-label="左右回転角度"
+    /></label>
+    <label class="form-label"
+      >上下回転<input
+        class="form-range"
+        data-control="pitch"
+        type="range"
+        min="-75"
+        max="75"
+        value="60"
+        aria-label="上下回転角度"
+    /></label>
+  </div>
+  <div class="viz-controls">
+    <button class="btn" type="button" data-action="assemble">組み合わせを見る</button>
+    <label class="form-label"
+      >分解 <output data-value="explode">65%</output
+      ><input
+        class="form-range"
+        data-control="explode"
+        type="range"
+        min="0"
+        max="100"
+        value="65"
+        aria-label="upper一式とunderの間隔"
+    /></label>
+  </div>
+  <div class="text-small" data-orientation>下：upper一式 ／ 上：under</div>
+  <div class="viz-row" data-legend aria-label="部材を選択" hidden></div>
+  <div class="text-small" data-detail aria-live="polite"></div>
+  <style>
+    #meister-propeller-assembly canvas {
+      display: block;
+      width: 100%;
+      height: 340px;
+      touch-action: none;
+      cursor: grab;
+    }
+    #meister-propeller-assembly canvas:active {
+      cursor: grabbing;
+    }
+    #meister-propeller-assembly [hidden] {
+      display: none !important;
+    }
+    #meister-propeller-assembly .material-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    #meister-propeller-assembly [data-detail] {
+      margin-top: 8px;
+    }
+    #meister-propeller-assembly .model-stage {
+      position: relative;
+    }
+    #meister-propeller-assembly .part-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      color: var(--muted-foreground);
+    }
+    #meister-propeller-assembly .part-labels {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    #meister-propeller-assembly .part-labels button {
+      position: absolute;
+      pointer-events: auto;
+    }
+    #meister-propeller-assembly .part-labels [data-pin] {
+      border-radius: 4px;
+    }
+    @media (max-width: 480px) {
+      #meister-propeller-assembly canvas {
+        height: 270px;
+      }
+    }
+  </style>
+</div>

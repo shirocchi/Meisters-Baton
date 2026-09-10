@@ -1,0 +1,39 @@
+<div class="model-bar">
+  <div class="segmented" aria-label="型の種類">
+    <button data-side="upper" aria-pressed="true">upperの型</button
+    ><button data-side="under" aria-pressed="false">underの型</button>
+  </div>
+  <span class="muted">断面の一部を拡大</span>
+</div>
+<div class="mold-diagram">
+  <svg
+    id="mold-svg"
+    viewBox="0 0 800 400"
+    role="img"
+    aria-label="雄型の土台、形状の基準、スタイロ、表面層、雌型の形成と脱型を示す模式図"
+  ></svg>
+</div>
+<div class="mold-stage-title" aria-live="polite">
+  <span id="stage-number">01</span>
+  <div>
+    <strong id="stage-title"></strong>
+    <p id="stage-detail"></p>
+  </div>
+</div>
+<div class="model-bar">
+  <button id="prev">前へ</button><button id="play" class="primary">工程を再生</button
+  ><button id="next">次へ</button><button id="save-svg">図を保存</button>
+</div>
+<label class="timeline-label"
+  >工程
+  <input
+    id="mold-progress"
+    type="range"
+    min="0"
+    max="600"
+    step="1"
+    value="0"
+    aria-label="型製作の工程位置"
+/></label>
+<div id="mold-steps" class="mold-steps"></div>
+<p class="muted caption">Ice4の輪郭を使った説明図。部材厚・間隔・型の側面は模式化。</p>

@@ -37,7 +37,7 @@ export function RecordTile({ recording, onOpen }: { recording: Recording; onOpen
     </button>
   );
 }
-function PendingRecord({ recording, pages }: { recording: Recording; pages: WikiPage[] }) {
+export function PendingRecord({ recording, pages }: { recording: Recording; pages: WikiPage[] }) {
   const wiki = useWiki();
   const candidates = matchRecording(recording, pages);
   const [selected, setSelected] = useState(candidates[0]?.page.id ?? '');
