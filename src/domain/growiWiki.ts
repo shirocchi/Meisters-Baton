@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { atlasMetadataSchema } from './wikiAtlas';
 
 export const growiOrigin = 'https://wiki2.meister.tech';
 export const wikiAssetSchema = z.object({
@@ -9,6 +10,10 @@ export const wikiAssetSchema = z.object({
   url: z.string(),
   downloadUrl: z.string(),
   fileName: z.string().optional(),
+  sourceSlug: z
+    .string()
+    .regex(/^atlas-asset-[a-f0-9]{64}$/)
+    .optional(),
   sha256: z
     .string()
     .regex(/^[a-f0-9]{64}$/)
@@ -40,6 +45,7 @@ export const wikiArchiveSchema = z.object({
   pages: z.array(wikiPageSchema),
   home: wikiPageSchema.optional(),
   diary: z.array(wikiPageSchema).optional(),
+  atlas: atlasMetadataSchema.optional(),
 });
 export type WikiPage = z.infer<typeof wikiPageSchema>;
 export type WikiAsset = z.infer<typeof wikiAssetSchema>;

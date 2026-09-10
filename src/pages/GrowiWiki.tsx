@@ -49,7 +49,7 @@ import '../styles-growi-wiki.css';
 import '../styles-wiki-workshop.css';
 import '../styles-wiki-reading.css';
 
-function Asset({
+export function Asset({
   asset,
   token,
   inline = false,
@@ -193,7 +193,7 @@ function PageTree({
   }
   return <ul className="gw-tree-list">{branch('')}</ul>;
 }
-const WikiContent = memo(function WikiContent({
+export const WikiContent = memo(function WikiContent({
   page,
   pages,
   assets,
@@ -487,7 +487,11 @@ export function GrowiWikiPage() {
               </button>
             )}
           </label>
-          <a className="gw-home" href="#library" onClick={() => setTreeOpen(false)}>
+          <a
+            className="gw-home"
+            href={wikiRoute(archive?.home?.id ?? 'home')}
+            onClick={() => setTreeOpen(false)}
+          >
             <Home size={17} />
             カーボンモノコックマニュアル
           </a>
@@ -551,12 +555,12 @@ export function GrowiWikiPage() {
           ) : !page ? (
             <section>
               <h2>ページが見つかりません</h2>
-              <a href="#library">マニュアルへ戻る</a>
+              <a href={wikiRoute(archive?.home?.id ?? 'home')}>マニュアルへ戻る</a>
             </section>
           ) : (
             <>
               <nav className="gw-breadcrumbs" aria-label="Wiki内の現在位置">
-                <a href="#library" aria-label="マニュアルのトップへ">
+                <a href={wikiRoute(archive?.home?.id ?? 'home')} aria-label="マニュアルのトップへ">
                   <Home size={18} />
                 </a>
                 {page.path

@@ -1,4 +1,5 @@
 import { wikiArchiveSchema, type WikiArchive, type WikiAsset } from '../domain/growiWiki';
+import { protectedAssetSchema } from '../domain/wikiAtlas';
 function config(token: string) {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -25,11 +26,19 @@ export async function loadWikiAsset(asset: WikiAsset, token: string, signal: Abo
   if (!asset.sha256) throw new Error('元Wikiの添付ファイルを取得できていません。');
   const { url, headers } = config(token);
   const r = await fetch(
-    `${url}/storage/v1/object/authenticated/propeller-wiki-media/${asset.sha256}`,
+    asset.sourceSlug
+      ? `${url}/rest/v1/propeller_wiki_sources?slug=eq.${encodeURIComponent(asset.sourceSlug)}&select=content`
+      : `${url}/storage/v1/object/authenticated/propeller-wiki-media/${asset.sha256}`,
     { headers, signal, cache: 'no-store' },
   );
   if (!r.ok) throw new Error('添付を読み込めません。通信状態または閲覧権限を確認してください。');
-  const buffer = await r.arrayBuffer();
+  let buffer: ArrayBuffer;
+  if (asset.sourceSlug) {
+    const rows: unknown = await r.json();
+    if (!Array.isArray(rows) || !rows.length) throw new Error('この添付の閲覧権限がありません。');
+    const content = protectedAssetSchema.parse(rows[0].content);
+    buffer = Uint8Array.from(atob(content.data), (c) => c.charCodeAt(0)).buffer;
+  } else buffer = await r.arrayBuffer();
   const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buffer)), (n) =>
     n.toString(16).padStart(2, '0'),
   ).join('');
