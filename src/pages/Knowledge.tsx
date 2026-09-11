@@ -58,11 +58,37 @@ export function LibraryPage() {
   const atlasStage = wiki.archive?.atlas?.stages.find(
     (s) => path === `#library/atlas/${s.id}` || path === `#library/wiki/${s.pageId}`,
   );
-  if (wiki.archive?.atlas && (path === '#library' || path === '#library/' || atlasStage)) {
-    const stageId = atlasStage?.id ?? wiki.archive.atlas.stages[0].id;
+  const detail = wiki.archive?.atlas?.details?.find((p) => path === `#library/wiki/${p.pageId}`);
+  const linkedPage = path.startsWith('#library/wiki/')
+    ? wiki.pages.find(
+        (p) =>
+          `#library/wiki/${encodeURIComponent(p.id)}` === path &&
+          p.id !== (wiki.archive?.home?.id ?? 'home'),
+      )
+    : undefined;
+  const inferred =
+    linkedPage &&
+    [
+      ['mold', /型|ゲルコート|スタイロ|大積層/],
+      ['flange', /フランジ|ロービング|黒帯/],
+      ['web', /ウェブ|スパー|桁リブ/],
+      ['join', /貼り合わせ|接着/],
+      ['finish', /塗装|仕上げ|ペラ端/],
+      ['skin', /外皮|バギング|真空|積層/],
+    ].find(([, terms]) => (terms as RegExp).test(linkedPage.title));
+  if (
+    wiki.archive?.atlas &&
+    (path === '#library' || path === '#library/' || atlasStage || linkedPage)
+  ) {
+    const stageId =
+      atlasStage?.id ??
+      detail?.stageId ??
+      wiki.archive.atlas.stages.find((s) => s.sources.includes(linkedPage?.id ?? ''))?.id ??
+      (inferred?.[0] as string | undefined) ??
+      wiki.archive.atlas.stages[0].id;
     return (
       <Suspense fallback={<p role="status">立体図鑑を読み込んでいます…</p>}>
-        <WikiAtlasPage key={stageId} stageId={stageId} />
+        <WikiAtlasPage key={linkedPage?.id ?? stageId} stageId={stageId} pageId={linkedPage?.id} />
       </Suspense>
     );
   }

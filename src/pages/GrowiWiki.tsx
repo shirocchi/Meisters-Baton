@@ -232,7 +232,7 @@ export const WikiContent = memo(function WikiContent({
     const id = base + (count ? `-${count}` : '');
     const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
     return (
-      <Tag id={id} data-wiki-heading={level}>
+      <Tag id={id} data-wiki-heading={level} data-wiki-title={plain(children).trim()}>
         {children}
         {onEditSection && (
           <button

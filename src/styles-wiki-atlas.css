@@ -355,7 +355,7 @@
   outline: 3px solid #bb913f;
   outline-offset: 3px;
 }
-@media (width<=1150px) {
+@media (width<=1023px) {
   .atlas-layout {
     grid-template-columns: 1fr;
     gap: 30px;
@@ -442,5 +442,180 @@
     scroll-behavior: auto;
     animation: none !important;
     transition: none !important;
+  }
+}
+
+.atlas-follow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.atlas-follow button {
+  min-height: 36px;
+  flex-shrink: 0;
+  color: #25599b;
+}
+.atlas-follow span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.atlas-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.atlas-breadcrumb a,
+.atlas-copy .gw-markdown a,
+.atlas-detail-links a {
+  color: #215ca5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.atlas-copy .gw-markdown {
+  color: #2f3544;
+  font-size: 15px;
+  line-height: 1.95;
+}
+.atlas-copy .gw-markdown > p:first-child {
+  font-size: 15px;
+  color: #2f3544;
+  margin-bottom: 24px;
+}
+.atlas-copy .gw-markdown img.gw-image {
+  max-height: 340px;
+  width: 100%;
+  object-fit: contain;
+}
+.atlas-copy .gw-markdown [data-wiki-heading] {
+  scroll-margin-top: 18px;
+}
+.atlas-contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 12px 0;
+  border-block: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+.atlas-contents button {
+  min-height: 32px;
+  padding: 3px 0;
+  border: 0;
+  background: none;
+  color: #215ca5;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.atlas-detail-links {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.atlas-detail-links h3 {
+  font-size: 16px;
+}
+.atlas-detail-links a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  font-size: 14px;
+}
+@media (min-width: 1024px) {
+  body main:has(.wiki-atlas) {
+    padding-top: 18px;
+    padding-bottom: 16px;
+  }
+  .wiki-atlas {
+    height: calc(100dvh - 142px);
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+  }
+  .wiki-atlas .page-title {
+    margin-bottom: 6px;
+    flex-shrink: 0;
+  }
+  .wiki-atlas .page-title h1 {
+    font-size: 25px;
+  }
+  .atlas-context {
+    margin-bottom: 8px;
+    flex-shrink: 0;
+  }
+  .atlas-context > a {
+    min-height: 30px;
+  }
+  .atlas-stages {
+    margin-bottom: 16px;
+    flex-shrink: 0;
+    padding: 4px;
+  }
+  .atlas-stages a {
+    min-height: 40px;
+    padding: 6px 10px;
+  }
+  .atlas-layout {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 28px;
+    flex: 1;
+    min-height: 0;
+  }
+  .atlas-visual {
+    position: relative;
+    top: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .atlas-visual-bar {
+    padding: 8px 12px;
+    flex-shrink: 0;
+  }
+  .atlas-visual-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px 10px;
+  }
+  .atlas-visual-body .atlas-model .model-stage canvas {
+    height: clamp(190px, 29dvh, 390px);
+  }
+  .atlas-source-link {
+    min-height: 40px;
+    padding: 9px 14px;
+    flex-shrink: 0;
+  }
+  .atlas-copy {
+    height: 100%;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: 0 18px 24px 2px;
+  }
+  .atlas-copy > h2 {
+    font-size: 26px;
+  }
+  .atlas-related > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1023px) {
+  .atlas-follow button,
+  .atlas-contents button {
+    min-height: 44px;
   }
 }

@@ -11,6 +11,7 @@ import './styles-refinements.css';
 import './styles-refresh.css';
 import './styles-wiki-refresh.css';
 import './styles-settings-refresh.css';
+import './styles-desktop.css';
 class ErrorBoundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {

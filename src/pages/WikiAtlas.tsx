@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   BookOpen,
@@ -26,7 +26,9 @@ import { AtlasModel } from '../components/atlas/AtlasModel';
 import { Asset, WikiContent } from './GrowiWiki';
 import '../styles-wiki-atlas.css';
 
-export function WikiAtlasPage({ stageId }: { stageId: string }) {
+const readingPositions = new Map<string, number>();
+
+export function WikiAtlasPage({ stageId, pageId }: { stageId: string; pageId?: string }) {
   const wiki = useWiki();
   const { auth, data, navigate } = useBaton();
   const [visual, setVisual] = useState<'model' | 'photo'>('model');
@@ -37,6 +39,88 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
   const [query, setQuery] = useState('');
   const [evidence, setEvidence] = useState<{ recording: Recording; time: number }>();
   const stageNav = useRef<HTMLElement>(null);
+  const copy = useRef<HTMLElement>(null);
+  const [active, setActive] = useState({ stage: stageId, step: 0, heading: '', photoId: '' });
+  const [follow, setFollow] = useState(true);
+  const atlas = wiki.archive?.atlas;
+  const stage = atlas?.stages.find((s) => s.id === stageId) ?? atlas?.stages[0];
+  const page = wiki.pages.find((p) => p.id === (pageId ?? stage?.pageId));
+  const detail = atlas?.details?.find((p) => p.pageId === page?.id);
+  const pageLocation = location.hash;
+  const positionKey = `${auth?.user.id}:${auth?.user.teamId}:${page?.id}`;
+  const sections = detail?.sections ?? (page?.id === stage?.pageId ? stage?.sections : undefined);
+  const assets = useMemo(() => wiki.pages.flatMap((p) => p.attachments), [wiki.pages]);
+  const edit = wiki.edits.find((e) => e.page_id === page?.id);
+  const recordings = useMemo(
+    () => [
+      ...new Map(
+        [...data.recordings, ...(edit?.events.map((e) => e.recording) ?? [])].map((r) => [r.id, r]),
+      ).values(),
+    ],
+    [data.recordings, edit?.events],
+  );
+  // Keep the memoized article mounted while only the visual/reading cursor changes.
+  // Recreating its asset props would remount inline images and alter the scroll geometry.
+  const openEvidence = useCallback(
+    (id: string, time: number) => {
+      const recording = recordings.find((r) => r.id === id);
+      if (recording) setEvidence({ recording, time });
+    },
+    [recordings],
+  );
+  useEffect(() => {
+    const root = copy.current;
+    if (!root || !page) return;
+    let frame = 0;
+    const update = () => {
+      if (!follow) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const headings = Array.from(root.querySelectorAll<HTMLElement>('[data-wiki-heading]'));
+        const top = matchMedia('(min-width: 1024px)').matches
+          ? root.getBoundingClientRect().top + 100
+          : 180;
+        const current = headings.filter((h) => h.getBoundingClientRect().top <= top).at(-1);
+        const title = current?.dataset.wikiTitle ?? '';
+        const section = [...(sections ?? [])].reverse().find((s) => {
+          const target = headings.find((h) => h.dataset.wikiTitle === s.heading);
+          return target && target.getBoundingClientRect().top <= top;
+        });
+        const next = {
+          stage: section?.stage ?? stageId,
+          step: section?.step ?? detail?.step ?? 0,
+          heading: title,
+          photoId: section?.photoId ?? detail?.photoId ?? '',
+        };
+        setActive((previous) =>
+          previous.stage === next.stage &&
+          previous.step === next.step &&
+          previous.heading === next.heading &&
+          previous.photoId === next.photoId
+            ? previous
+            : next,
+        );
+      });
+    };
+    const scrolled = () => {
+      readingPositions.set(positionKey, root.scrollTop);
+      if (readingPositions.size > 40)
+        readingPositions.delete(readingPositions.keys().next().value!);
+      update();
+    };
+    root.addEventListener('scroll', scrolled, { passive: true });
+    window.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(root);
+    for (const img of root.querySelectorAll('img')) observer.observe(img);
+    update();
+    return () => {
+      cancelAnimationFrame(frame);
+      root.removeEventListener('scroll', scrolled);
+      window.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, [page?.id, page?.body, sections, stageId, detail?.step, detail?.photoId, follow, positionKey]);
   useEffect(() => {
     const nav = stageNav.current;
     const current = nav?.querySelector<HTMLElement>('[aria-current="page"]');
@@ -48,25 +132,14 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
         (e) => e.id === heading,
       );
     if (target) target.scrollIntoView({ block: 'start' });
-    else window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [stageId]);
-  const atlas = wiki.archive?.atlas;
-  const stage = atlas?.stages.find((s) => s.id === stageId) ?? atlas?.stages[0];
-  const page = wiki.pages.find((p) => p.id === stage?.pageId);
+    else {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      copy.current?.scrollTo({ top: readingPositions.get(positionKey) ?? 0, behavior: 'instant' });
+    }
+  }, [stageId, pageId, pageLocation, positionKey]);
   if (!auth || !atlas || !stage || !page) return <p role="status">技術Wikiを読み込んでいます…</p>;
-  const assets = wiki.pages.flatMap((p) => p.attachments);
   const modelAsset = assets.find((a) => a.id === atlas.modelAssetId);
-  const photo = assets.find((a) => a.id === stage.photoId);
-  const edit = wiki.edits.find((e) => e.page_id === page.id);
-  const recordings = [
-    ...new Map(
-      [...data.recordings, ...(edit?.events.map((e) => e.recording) ?? [])].map((r) => [r.id, r]),
-    ).values(),
-  ];
-  const openEvidence = (id: string, time: number) => {
-    const recording = recordings.find((r) => r.id === id);
-    if (recording) setEvidence({ recording, time });
-  };
+  const photo = assets.find((a) => a.id === (active.photoId || detail?.photoId || stage.photoId));
   const render = (body: string, media: WorkshopMedia[] = edit?.media ?? []) => (
     <WikiContent
       page={{ ...page, body }}
@@ -79,7 +152,19 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
     />
   );
   const model = modelAsset ? (
-    <AtlasModel asset={modelAsset} token={auth.token} kind={stage.model} local={stage.local} />
+    <AtlasModel
+      asset={modelAsset}
+      token={auth.token}
+      kind={stage.model}
+      local={active.stage === 'overview' ? active.step === 1 : stage.local}
+      process={active.stage}
+      step={active.step}
+      paintAsset={assets.find((a) => a.id === atlas.paintAssetId)}
+      onStepChange={(step) => {
+        setFollow(false);
+        setActive((s) => ({ ...s, step }));
+      }}
+    />
   ) : (
     <p className="atlas-loading">模型の準備ができていません。本文と実写真をご覧ください。</p>
   );
@@ -105,7 +190,9 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
       </PageTitle>
       <div className="atlas-context">
         <div>
-          <Badge tone="green">26代の製作方法</Badge>
+          <Badge tone="green">
+            {page.id === stage.pageId || detail ? '26代の製作方法' : '関連するWiki資料'}
+          </Badge>
           <span>Meister · プロペラ班</span>
         </div>
         <a href={wikiRoute(wiki.archive?.home?.id ?? 'home')}>
@@ -131,6 +218,13 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
           {wiki.editError}
         </p>
       )}
+      {page.id !== stage.pageId && (
+        <nav className="atlas-breadcrumb" aria-label="現在のページ">
+          <a href={`#library/atlas/${stage.id}`}>{stage.short}</a>
+          <ChevronRight size={14} />
+          <span>{page.title}</span>
+        </nav>
+      )}
       <div className="atlas-layout">
         <aside className="atlas-visual" aria-label="工程を目で見る">
           <div className="atlas-visual-bar">
@@ -154,13 +248,26 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
               </button>
             )}
           </div>
+          <div className="atlas-follow">
+            <button
+              className="text-button"
+              aria-pressed={follow}
+              onClick={() => {
+                setFollow((v) => !v);
+                copy.current?.dispatchEvent(new Event('scroll'));
+              }}
+            >
+              {follow ? '本文に連動中' : '本文に連動する'}
+            </button>
+            <span>{active.heading || page.title}</span>
+          </div>
           <div className="atlas-visual-body">
             {visual === 'model' ? (
               modal !== 'model' && model
             ) : (
               <figure>
                 {photo && <Asset asset={photo} token={auth.token} inline />}
-                <figcaption>{stage.photoCaption}</figcaption>
+                <figcaption>{photo?.name ?? stage.photoCaption}</figcaption>
               </figure>
             )}
           </div>
@@ -170,7 +277,7 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
             <ChevronRight size={16} />
           </button>
         </aside>
-        <article className="atlas-copy">
+        <article className="atlas-copy" ref={copy} tabIndex={0} aria-label="Wiki本文">
           <div className="atlas-article-meta">
             <span>CHAPTER {stage.number}</span>
             <button className="text-button" onClick={() => setModal('history')}>
@@ -182,6 +289,23 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
           <div className="atlas-author">
             {page.author} · {page.updatedAt.slice(0, 10).replaceAll('-', '.')}
           </div>
+          {!!sections?.length && (
+            <nav className="atlas-contents" aria-label="このページの目次">
+              {sections.map((s, i) => (
+                <button
+                  key={`${s.heading}-${i}`}
+                  onClick={() => {
+                    const heading = Array.from(
+                      copy.current?.querySelectorAll<HTMLElement>('[data-wiki-heading]') ?? [],
+                    ).find((h) => h.dataset.wikiTitle === s.heading);
+                    heading?.scrollIntoView({ block: 'start', behavior: 'instant' });
+                  }}
+                >
+                  {s.heading}
+                </button>
+              ))}
+            </nav>
+          )}
           <div className="gw-markdown">
             <WikiContent
               page={page}
@@ -217,29 +341,47 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
               </a>
             )}
           </div>
+          {!!atlas.details?.filter((d) => d.stageId === stageId && d.pageId !== page.id).length && (
+            <section className="atlas-detail-links">
+              <h3>詳しく読む</h3>
+              {atlas.details
+                .filter((d) => d.stageId === stageId && d.pageId !== page.id)
+                .map((d) => {
+                  const target = wiki.pages.find((p) => p.id === d.pageId);
+                  return (
+                    target && (
+                      <a key={d.pageId} href={wikiRoute(d.pageId)}>
+                        {target.title}
+                        <ChevronRight size={15} />
+                      </a>
+                    )
+                  );
+                })}
+            </section>
+          )}
+          {related.length > 0 && (
+            <section className="atlas-related">
+              <h2>つながる工程</h2>
+              <div>
+                {related.map((s) => {
+                  const image = assets.find((a) => a.id === s.photoId);
+                  return (
+                    <div className="atlas-related-card" key={s.id}>
+                      {image && <Asset asset={image} token={auth.token} inline />}
+                      <a href={`#library/atlas/${s.id}`}>
+                        <span>
+                          {s.number} · {s.short}
+                        </span>
+                        <ArrowRight size={17} />
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </article>
       </div>
-      {related.length > 0 && (
-        <section className="atlas-related">
-          <h2>つながる工程</h2>
-          <div>
-            {related.map((s) => {
-              const image = assets.find((a) => a.id === s.photoId);
-              return (
-                <div className="atlas-related-card" key={s.id}>
-                  {image && <Asset asset={image} token={auth.token} inline />}
-                  <a href={`#library/atlas/${s.id}`}>
-                    <span>
-                      {s.number} · {s.short}
-                    </span>
-                    <ArrowRight size={17} />
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
       {modal === 'search' && (
         <Modal title="Wikiを検索" close={() => setModal(null)} wide>
           <label className="atlas-search">
@@ -269,7 +411,7 @@ export function WikiAtlasPage({ stageId }: { stageId: string }) {
       {modal === 'sources' && (
         <Modal title={`${stage.short}の製作記録`} close={() => setModal(null)} wide>
           <div className="atlas-source-records">
-            {stage.sources.map((id) => {
+            {(detail?.sources ?? stage.sources).map((id) => {
               const source = wiki.pages.find((p) => p.id === id);
               return (
                 source && (

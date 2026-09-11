@@ -1,6 +1,9 @@
 # Meister's Baton
 
-Mobile application for capturing craft knowledge through recorded work, questions, and evidence. Japanese is the product language.
+Desktop-first application for capturing craft knowledge through recorded work, questions, and evidence. Recording must also remain practical on phones. Japanese is the product language.
+
+- Technical Wiki uses a fixed visual pane on the left and an independently scrolling article on the right on PC. Article sections select the matching process visualization; linked detail pages retain the same layout.
+- Each manufacturing stage needs its own explanation. Do not substitute the completed blade assembly animation for skin layup, flange layup, web placement, or finishing. Use dated primary records and keep prototype conditions separate from the final manufacturing method.
 
 ## Working agreements
 

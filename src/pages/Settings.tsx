@@ -57,6 +57,14 @@ const syncBaselines = new Map<string, SyncEnvelope>();
 // apply results after the connection, account, or local workspace has changed.
 let settingsOperation = 0;
 const collections = ['recordings', 'articles', 'requests', 'activity'] as const;
+const settingsSections = [
+  { id: 'settings-profile', label: '記録する人と工房' },
+  { id: 'settings-team', label: 'チームで引き継ぐ' },
+  { id: 'settings-ai', label: 'AIとチーム共有' },
+  { id: 'settings-backup', label: '記録を手元に残す' },
+  { id: 'settings-about', label: 'このアプリについて' },
+  { id: 'settings-data', label: 'データの管理' },
+];
 type CollectionItem = TeamData[(typeof collections)[number]][number];
 function validUser(value: unknown): value is AuthUser {
   if (!value || typeof value !== 'object') return false;
@@ -498,7 +506,7 @@ export function SettingsPage() {
       )}
       <div className="settings-layout">
         <div className="settings-main">
-          <section className="settings-section">
+          <section className="settings-section" id="settings-profile" tabIndex={-1}>
             <div className="settings-heading">
               <Settings2 size={21} />
               <div>
@@ -570,7 +578,7 @@ export function SettingsPage() {
             )}
           </section>
 
-          <section className="settings-section">
+          <section className="settings-section" id="settings-team" tabIndex={-1}>
             <div className="settings-heading">
               <Users size={22} />
               <div>
@@ -806,7 +814,7 @@ export function SettingsPage() {
             )}
           </section>
 
-          <section className="settings-section">
+          <section className="settings-section" id="settings-ai" tabIndex={-1}>
             <div className="settings-heading">
               <ShieldCheck size={22} />
               <div>
@@ -896,7 +904,7 @@ export function SettingsPage() {
             </details>
           </section>
 
-          <section className="settings-section">
+          <section className="settings-section" id="settings-backup" tabIndex={-1}>
             <div className="settings-heading">
               <Download size={22} />
               <div>
@@ -949,7 +957,7 @@ export function SettingsPage() {
               読み込みは今の記録へ追加します。同じ記録に異なる内容がある場合は、置き換えず中止します。
             </p>
           </section>
-          <section className="settings-section">
+          <section className="settings-section" id="settings-about" tabIndex={-1}>
             <h2>このアプリについて</h2>
             <p>利用しているライブラリとフォントの著作権・ライセンスを確認できます。</p>
             <button className="button" disabled={!!busy} onClick={() => void loadNotices()}>
@@ -958,6 +966,22 @@ export function SettingsPage() {
           </section>
         </div>
         <aside className="settings-aside">
+          <nav className="settings-index" aria-label="設定の項目">
+            <h2>設定の項目</h2>
+            {settingsSections.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  const section = document.getElementById(id);
+                  section?.scrollIntoView({ block: 'start' });
+                  section?.focus({ preventScroll: true });
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
           <section className="privacy-card">
             <ShieldCheck size={28} />
             <h2>
@@ -978,7 +1002,7 @@ export function SettingsPage() {
               メール確認の有無はSupabaseの運用設定に従います。このベータはパスワード再発行に未対応です。公開運用前に提供者の窓口・プライバシー方針を確定してください。
             </small>
           </section>
-          <section className="settings-danger">
+          <section className="settings-danger" id="settings-data" tabIndex={-1}>
             <h3>データの管理</h3>
             <button
               className="text-button danger"

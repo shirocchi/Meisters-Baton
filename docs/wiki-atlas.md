@@ -2,7 +2,19 @@
 
 The selected atlas is the default `#library` view when the authenticated archive includes `atlas` metadata. It uses the existing app shell, typography, color tokens, buttons, editor, history and recording integration. `#library/atlas/<stage>` opens a stage; links to its underlying Wiki page resolve to the same atlas. Previous GROWI page URLs remain valid. Archives without atlas metadata retain the existing reader.
 
-The model has two assembly groups: the upper shell with its installed internal members, and the under shell. Its assembly animation moves only the under group. Material labels and a local cross-section view help explain the structure. The mold illustration describes seven stages and supports reduced motion. These are explanatory models, not structural calculations or manufacturing tolerances.
+The model has two assembly groups: the upper shell with its installed internal members, and the under shell. Its assembly animation moves only the under group. Material labels and a local cross-section view help explain the structure. The mold illustration describes the manufacturing sequence and supports reduced motion. These are explanatory models, not structural calculations or manufacturing tolerances.
+
+## Desktop reading and process views
+
+At desktop widths (1024px and up), the visual and article occupy two stable panes. Only the article scrolls; its visible heading selects a process step. Manual visual controls pause article following until the reader enables it again. Back navigation restores the article position. Smaller screens keep a stacked reading layout and touch controls; capture remains usable on phones.
+
+Optional `stages[].sections` entries map article heading text to a zero-based `step` and optional `stage`/`photoId`. Optional `details[]` entries map a shared Wiki `pageId` to `stageId`, initial `step`, heading sections and evidence. Thus main pages, detail links, search results, edits and recorded evidence all use the same canonical page IDs. Existing archive metadata without these fields remains readable. Source diary links and older manual pages also retain their shared content and receive a relevant process view.
+
+`ProcessVisual` supplies distinct mold, skin layup, flange, internal-member, joining and finishing animations. The renderer reads the protected blade sections and airfoil profile rather than shipping club CAD coordinates. Insets show layer order and fixture engagement. Mold and fixture diagrams simplify spacing/counts and exaggerate thin layers for readability; they do not certify exact tooling dimensions. A protected painting-reference asset can accompany the finishing steps. Changing identity aborts requests and revokes media URLs.
+
+Production content updates must check for concurrent page edits, preserve older generations' pages and dated practice records, and take a protected archive snapshot before replacing the authored latest-generation pages. The final method and earlier trials must be clearly separated. Assets are staged and hash-verified before the archive begins referencing them.
+
+Optional model `manufacturing` data carries validated mold sections, product surfaces and fixture outlines through the same protected attachment transport. Its source coordinates stay out of the public renderer. The manufacturing diagram uses representative sections; a fixture detail is not a complete set of manufacturing drawings. Layer illustrations show the confirmed total without inventing an unverified material sequence.
 
 ## Protected content
 

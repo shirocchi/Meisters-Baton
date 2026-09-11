@@ -26,12 +26,46 @@ const profile = z
   .array(z.tuple([z.number().finite(), z.number().finite()]))
   .min(3)
   .max(5000);
+const cadPoint = z.tuple([z.number().finite(), z.number().finite()]);
+const cadPath = z.array(cadPoint).min(2).max(1600);
+const cadMold = z.object({
+  sections: z
+    .array(
+      z.object({
+        span: z.number().finite(),
+        outline: cadPath,
+        product: cadPath,
+      }),
+    )
+    .min(2)
+    .max(60),
+});
+export const atlasManufacturingSchema = z.object({
+  units: z.literal('mm'),
+  molds: z.object({ upper: cadMold, under: cadMold }),
+  jigs: z.object({
+    web: z.object({ paths: z.array(cadPath).min(1).max(16), slot: cadPath.optional() }),
+    join: z.object({
+      supportPaths: z.array(cadPath).min(1).max(16),
+      pressPaths: z.array(cadPath).min(1).max(16),
+      upperContact: cadPath.optional(),
+      underContact: cadPath.optional(),
+    }),
+  }),
+});
 export const atlasModelSchema = z.object({
   body: model,
   local: model,
   profile: z.object({ upper: profile, under: profile }),
+  manufacturing: atlasManufacturingSchema.optional(),
 });
 export type AtlasModel = z.infer<typeof atlasModelSchema>;
+const visualSection = z.object({
+  heading: z.string(),
+  stage: z.string().optional(),
+  step: z.number().int().min(0).max(30),
+  photoId: z.string().optional(),
+});
 export const atlasMetadataSchema = z.object({
   version: z.literal(1),
   modelAssetId: z.string(),
@@ -48,9 +82,23 @@ export const atlasMetadataSchema = z.object({
         photoCaption: z.string(),
         sources: z.array(z.string()),
         related: z.array(z.string()),
+        sections: z.array(visualSection).optional(),
       }),
     )
     .min(1)
     .max(30),
+  details: z
+    .array(
+      z.object({
+        pageId: z.string(),
+        stageId: z.string(),
+        step: z.number().int().min(0).max(30).optional(),
+        sections: z.array(visualSection).optional(),
+        photoId: z.string().optional(),
+        sources: z.array(z.string()).optional(),
+      }),
+    )
+    .optional(),
+  paintAssetId: z.string().optional(),
 });
 export const protectedAssetSchema = z.object({ encoding: z.literal('base64'), data: base64 });

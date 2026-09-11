@@ -287,6 +287,7 @@ function Shell() {
           <button
             className={active === 'settings' ? 'active' : ''}
             onClick={() => navigate('settings')}
+            aria-current={active === 'settings' ? 'page' : undefined}
           >
             <Settings2 size={19} />
             工房の設定
@@ -320,7 +321,7 @@ function Shell() {
             オフライン · 記録とWikiはこの端末で使えます
           </div>
         )}
-        <main id="main-content" tabIndex={-1} key={path}>
+        <main id="main-content" data-area={area} tabIndex={-1} key={path}>
           {area === 'capture' ? (
             <CapturePage />
           ) : area === 'recording' ? (

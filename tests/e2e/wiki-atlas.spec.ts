@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { connect, fixture } from './helpers/wikiFixture';
 import type { WikiArchive, WikiAsset } from '../../src/domain/growiWiki';
 import type { WikiEdit } from '../../src/domain/wikiWorkshop';
+import { PROCESS_STEPS } from '../../src/components/atlas/processStages';
 
 // Deliberately synthetic geometry. Production CAD and photographs stay out of the repository.
 const packed = (values: number[]) => Buffer.from(new Uint16Array(values).buffer).toString('base64');
@@ -44,18 +45,46 @@ const modelAsset: WikiAsset = {
   downloadUrl: '/atlas/model',
   sourceSlug: `atlas-asset-${sha}`,
 };
+const readingSpace = Array.from(
+  { length: 9 },
+  (_, i) =>
+    `検証用の説明 ${i + 1}。ここには実際の設計値を含めず、手順の読み進め方を確認するための文章を置きます。`,
+).join('\n\n');
 const overview = {
   ...fixture.pages[0],
   id: 'atlas-test-overview',
   title: 'ウェブ組み立て',
   path: '/ペラ/26代/ウェブ組み立て',
-  body: '検証用の技術資料。\n\n## ウェブを立てる\n\n既存の作業手順を残す。',
+  body: `検証用の技術資料。\n\n## ウェブを立てる\n\n既存の作業手順を残す。\n\n${readingSpace}\n\n## 型の工程を読む\n\n[ウェブ治具の詳細](/ペラ/26代/ウェブ治具の詳細)\n\n${readingSpace}\n\n## 外皮の工程を読む\n\n![架空の工程写真](/attachment/test-image)\n\n${readingSpace}`,
   attachments: [modelAsset],
 };
-const mold = { ...overview, id: 'atlas-test-mold', title: '型製作', path: '/ペラ/26代/型製作' };
+const processNames = [
+  ['mold', '型を作る'],
+  ['skin', '外皮積層'],
+  ['flange', 'フランジ'],
+  ['web', '内部部材'],
+  ['join', '貼り合わせ'],
+  ['finish', '仕上げ'],
+] as const;
+const processPages = processNames.map(([id, title]) => ({
+  ...overview,
+  id: `atlas-test-${id}`,
+  title,
+  path: `/ペラ/26代/${title}`,
+  body: `検証用の${title}。\n\n## 工程の準備\n\n${readingSpace}\n\n## 次の作業\n\n${readingSpace}`,
+  attachments: [],
+}));
+const detailPage = {
+  ...overview,
+  id: 'atlas-test-web-detail',
+  title: 'ウェブ治具の詳細',
+  path: '/ペラ/26代/ウェブ治具の詳細',
+  body: `検証用の治具ページ。\n\n## 治具を合わせる\n\n${readingSpace}\n\n## 溝に差し込む\n\n${readingSpace}`,
+  attachments: [],
+};
 const archive: WikiArchive = {
   ...fixture,
-  pages: [...fixture.pages, overview, mold],
+  pages: [...fixture.pages, overview, ...processPages, detailPage],
   atlas: {
     version: 1,
     modelAssetId: modelAsset.id,
@@ -71,18 +100,39 @@ const archive: WikiArchive = {
         photoCaption: '架空の試験写真',
         sources: ['skin'],
         related: ['mold'],
+        sections: [
+          { heading: 'ウェブを立てる', stage: 'overview', step: 0 },
+          { heading: '型の工程を読む', stage: 'mold', step: 2 },
+          { heading: '外皮の工程を読む', stage: 'skin', step: 3, photoId: 'test-image' },
+        ],
       },
-      {
-        id: 'mold',
-        pageId: mold.id,
-        number: '01',
-        short: '型を作る',
-        model: 'mold',
+      ...processNames.map(([id, short], index) => ({
+        id,
+        pageId: processPages[index].id,
+        number: String(index + 1).padStart(2, '0'),
+        short,
+        model: id === 'mold' ? ('mold' as const) : ('blade' as const),
         local: false,
         photoId: 'test-image',
         photoCaption: '架空の試験写真',
         sources: ['skin'],
         related: ['overview'],
+        sections: [
+          { heading: '工程の準備', step: 0 },
+          { heading: '次の作業', step: 2 },
+        ],
+      })),
+    ],
+    details: [
+      {
+        pageId: detailPage.id,
+        stageId: 'web',
+        step: 1,
+        sections: [
+          { heading: '治具を合わせる', step: 1 },
+          { heading: '溝に差し込む', step: 2 },
+        ],
+        sources: ['skin'],
       },
     ],
   },
@@ -124,6 +174,15 @@ async function setup(page: Page) {
   });
   return edits;
 }
+async function readSection(page: Page, title: string) {
+  await page.getByRole('article', { name: 'Wiki本文' }).evaluate((root, title) => {
+    const heading = Array.from(root.querySelectorAll<HTMLElement>('[data-wiki-heading]')).find(
+      (element) => element.childNodes[0]?.textContent?.trim() === title,
+    );
+    if (!heading) throw new Error(`Missing fixture heading: ${title}`);
+    root.scrollTop += heading.getBoundingClientRect().top - root.getBoundingClientRect().top - 22;
+  }, title);
+}
 test.use({ launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } });
 test.describe('production Wiki atlas', () => {
   test.skip(!process.env.BATON_TEST_SUPABASE, 'Requires Supabase fixtures');
@@ -155,9 +214,13 @@ test.describe('production Wiki atlas', () => {
     await expect(page.getByRole('dialog').locator('canvas')).toBeVisible();
     await page.getByRole('button', { name: '閉じる', exact: true }).click();
     await page.locator('.atlas-stages').getByRole('link', { name: '01 型を作る' }).click();
-    for (let i = 0; i < 7; i++) {
-      await page.locator(`[data-stage="${i}"]`).click();
-      await expect(page.locator('#stage-number')).toHaveText(String(i + 1).padStart(2, '0'));
+    for (let i = 0; i < PROCESS_STEPS.mold.length; i++) {
+      await page.getByLabel('工程図の手順', { exact: true }).selectOption(String(i));
+      await expect(page.locator('.process-visual')).toHaveAttribute('data-process-step', String(i));
+      await expect(page.locator('.process-scene')).toHaveAttribute(
+        'aria-label',
+        `${PROCESS_STEPS.mold[i].title}。${PROCESS_STEPS.mold[i].detail}`,
+      );
     }
     await page.getByRole('button', { name: '実写真', exact: true }).click();
     await expect(page.locator('.atlas-visual img')).toBeVisible();
@@ -220,4 +283,157 @@ test.describe('production Wiki atlas', () => {
     await page.getByRole('button', { name: '本文を編集', exact: true }).click();
     await expect(page.getByLabel('Wikiの本文')).toBeVisible();
   });
+
+  test('each manufacturing stage has its own seekable visual, keyboard controls and reduced-motion playback', async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await setup(page);
+    await page.goto('/#library/atlas/mold');
+    for (const [id, name] of processNames) {
+      await page
+        .getByRole('navigation', { name: 'プロペラ製作の工程' })
+        .getByRole('link', { name: new RegExp(name) })
+        .click();
+      const process = page.locator('.process-visual');
+      const slider = process.getByRole('slider', { name: '工程図のシークバー' });
+      await expect(process).toHaveAttribute('data-process-stage', id);
+      await expect(process.locator('.process-scene')).toBeVisible();
+      const accessibility = await new AxeBuilder({ page })
+        .include('.process-visual')
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+        .analyze();
+      expect(accessibility.violations.map(({ id }) => id)).toEqual([]);
+      await expect(
+        process.getByLabel('工程図の手順', { exact: true }).locator('option'),
+      ).toHaveCount(PROCESS_STEPS[id].length);
+      await slider.focus();
+      await slider.press('End');
+      await expect(process).toHaveAttribute(
+        'data-process-step',
+        String(PROCESS_STEPS[id].length - 1),
+      );
+      await slider.press('Home');
+      await expect(process).toHaveAttribute('data-process-step', '0');
+      await process.getByRole('button', { name: '次の手順を表示', exact: true }).click();
+      await expect(slider).toHaveValue('1');
+      // Reduced motion takes one discrete step and does not keep advancing afterward.
+      await page.waitForTimeout(250);
+      await expect(slider).toHaveValue('1');
+      const toggle = process.getByRole('button', { name: '部材名', exact: true });
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      if (id === 'flange') {
+        await expect(process.locator('.process-scene')).toContainText('upper：ロービング 6 本');
+        await process.getByRole('button', { name: 'under', exact: true }).click();
+        await expect(process.locator('.process-scene')).toContainText('under：ロービング 4 本');
+      }
+      for (let step = 0; step < PROCESS_STEPS[id].length; step++) {
+        await process.getByLabel('工程図の手順', { exact: true }).selectOption(String(step));
+        await expect(process).toHaveAttribute('data-process-step', String(step));
+        await expect(process.locator('.process-scene')).toHaveAttribute(
+          'aria-label',
+          `${PROCESS_STEPS[id][step].title}。${PROCESS_STEPS[id][step].detail}`,
+        );
+      }
+    }
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.getByLabel('工程図の手順', { exact: true }).selectOption('0');
+    await page.getByRole('button', { name: '工程を再生', exact: true }).click();
+    await expect
+      .poll(async () => Number(await page.getByLabel('工程図のシークバー').inputValue()))
+      .toBeGreaterThan(0.05);
+    await page.getByRole('button', { name: '工程の再生を一時停止', exact: true }).click();
+    const paused = await page.getByLabel('工程図のシークバー').inputValue();
+    await page.waitForTimeout(150);
+    expect(await page.getByLabel('工程図のシークバー').inputValue()).toBe(paused);
+    expect(errors).toEqual([]);
+  });
+
+  for (const width of [1024, 1440]) {
+    test(`desktop ${width}: article scrolling changes the visual without moving its frame and detail links restore reading position`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await setup(page);
+      await page.goto('/#library');
+      await expect(page.locator('.atlas-model canvas')).toBeVisible();
+      const left = page.getByRole('complementary', { name: '工程を目で見る' });
+      const right = page.getByRole('article', { name: 'Wiki本文' });
+      const initialLeft = (await left.boundingBox())!;
+      const initialRight = (await right.boundingBox())!;
+      expect(initialRight.x).toBeGreaterThanOrEqual(initialLeft.x + initialLeft.width);
+      expect(Math.abs(initialRight.y - initialLeft.y)).toBeLessThanOrEqual(2);
+      const initialWindowScroll = await page.evaluate(() => window.scrollY);
+
+      await readSection(page, '型の工程を読む');
+      await expect(page.locator('.atlas-follow')).toContainText('型の工程を読む');
+      await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'mold');
+      await expect(left.getByRole('slider')).toHaveValue('2');
+      expect((await left.boundingBox())!.y).toBeCloseTo(initialLeft.y, 0);
+      expect(await page.evaluate(() => window.scrollY)).toBe(initialWindowScroll);
+
+      await left.getByLabel('工程図の手順', { exact: true }).selectOption('1');
+      await expect(
+        left.getByRole('button', { name: '本文に連動する', exact: true }),
+      ).toHaveAttribute('aria-pressed', 'false');
+      await readSection(page, '外皮の工程を読む');
+      await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'mold');
+      await expect(left.getByRole('slider')).toHaveValue('1');
+      await left.getByRole('button', { name: '本文に連動する', exact: true }).click();
+      await expect(page.locator('.atlas-follow')).toContainText('外皮の工程を読む');
+      await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'skin');
+      await expect(left.getByRole('slider')).toHaveValue('3');
+      await expect(right.locator('.gw-markdown img.gw-image')).toBeVisible();
+      expect((await left.boundingBox())!.y).toBeCloseTo(initialLeft.y, 0);
+      const inlineImage = await right.locator('.gw-markdown img.gw-image').elementHandle();
+      const beforeVisualSwitch = await right.evaluate((root) => root.scrollTop);
+      await left.getByRole('button', { name: '実写真', exact: true }).click();
+      await expect(left.locator('.atlas-visual-body img')).toBeVisible();
+      await expect(left.locator('figcaption')).toHaveText('fixture.svg');
+      expect(await inlineImage!.evaluate((image) => image.isConnected)).toBe(true);
+      expect(await right.evaluate((root) => root.scrollTop)).toBe(beforeVisualSwitch);
+      await left.getByRole('button', { name: '動かして見る', exact: true }).click();
+      await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'skin');
+
+      await readSection(page, '型の工程を読む');
+      await expect(left.getByRole('slider')).toHaveValue('2');
+      const previousScroll = await right.evaluate((root) => root.scrollTop);
+      const detailLink = right.getByRole('link', { name: 'ウェブ治具の詳細', exact: true }).first();
+      const linkColor = await detailLink.evaluate((element) => getComputedStyle(element).color);
+      const textColor = await right
+        .locator('.gw-markdown')
+        .evaluate((element) => getComputedStyle(element).color);
+      expect(linkColor).not.toBe(textColor);
+      await detailLink.click();
+      await expect(page).toHaveURL(/#library\/wiki\/atlas-test-web-detail$/);
+      await expect(right.locator('h2').first()).toHaveText('ウェブ治具の詳細');
+      await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'web');
+      await expect(left.getByRole('slider')).toHaveValue('1');
+      const detailLeft = (await left.boundingBox())!;
+      expect((await right.boundingBox())!.x).toBeGreaterThanOrEqual(
+        detailLeft.x + detailLeft.width,
+      );
+      await readSection(page, '溝に差し込む');
+      await expect(left.getByRole('slider')).toHaveValue('2');
+      expect((await left.boundingBox())!.y).toBeCloseTo(detailLeft.y, 0);
+      await page.goBack();
+      await expect(page).toHaveURL(/#library$/);
+      await expect(right.locator('h2').first()).toHaveText(overview.title);
+      await expect
+        .poll(async () =>
+          Math.abs((await right.evaluate((root) => root.scrollTop)) - previousScroll),
+        )
+        .toBeLessThanOrEqual(3);
+      await expect(left.getByRole('slider')).toHaveValue('2');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        width,
+      );
+    });
+  }
 });

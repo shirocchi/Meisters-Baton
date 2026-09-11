@@ -1,0 +1,155 @@
+/* Desktop workspace; capture keeps its existing phone layout and readable form width. */
+:root {
+  --app-nav-height: 64px;
+  --app-content-gap: 28px;
+}
+
+.settings-index {
+  display: none;
+}
+
+.settings-section[id],
+.settings-danger[id] {
+  scroll-margin-top: calc(var(--app-nav-height) + 20px);
+}
+
+@media (min-width: 761px) {
+  body .sidebar {
+    height: var(--app-nav-height);
+    padding-inline: clamp(20px, 2.2vw, 40px);
+    gap: clamp(16px, 2vw, 32px);
+  }
+
+  body .topbar {
+    height: 44px;
+    padding-inline: clamp(24px, 2.2vw, 40px);
+  }
+
+  body main {
+    width: 100%;
+    max-width: 1600px;
+    padding: 28px clamp(24px, 2.2vw, 40px) 64px;
+  }
+
+  body main[data-area='capture'],
+  body main[data-area='recording'] {
+    max-width: 1200px;
+  }
+
+  body .growi-wiki {
+    margin-inline: calc(-1 * clamp(24px, 2.2vw, 40px));
+  }
+
+  body .home-tools .search-field {
+    max-width: 760px;
+  }
+
+  .sidebar-bottom button.active {
+    color: var(--brand);
+    background: var(--brand-soft);
+    border-radius: 8px;
+    font-weight: 600;
+  }
+}
+
+@media (min-width: 1000px) {
+  body .home-columns,
+  body .ask-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.38fr);
+    gap: var(--app-content-gap);
+    align-items: start;
+  }
+
+  body .home-aside {
+    display: block;
+    border-left: 1px solid var(--line);
+    padding-left: 24px;
+  }
+
+  body .home-aside .question-note {
+    margin-top: 28px;
+  }
+
+  body .ask-aside {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding: 0 0 0 24px;
+  }
+
+  body .ask-aside,
+  body .home-aside {
+    position: sticky;
+    top: calc(var(--app-nav-height) + 24px);
+    max-height: calc(100dvh - var(--app-nav-height) - 48px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  body .settings-layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: var(--app-content-gap);
+  }
+
+  body .settings-aside {
+    position: sticky;
+    top: calc(var(--app-nav-height) + 24px);
+    max-height: calc(100dvh - var(--app-nav-height) - 48px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding-right: 6px;
+  }
+
+  .settings-index {
+    display: grid;
+    gap: 2px;
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .settings-index h2 {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 12px 8px;
+  }
+
+  .settings-index button {
+    text-align: left;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--brand);
+  }
+
+  .settings-index button:hover {
+    background: var(--brand-soft);
+  }
+
+  body .settings-aside .privacy-card {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1400px) {
+  body .settings-main {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+  }
+
+  #settings-team {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  #settings-ai {
+    grid-column: 1;
+  }
+
+  .settings-main .form-two {
+    grid-template-columns: 1fr;
+  }
+}
