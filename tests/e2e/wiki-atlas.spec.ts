@@ -180,7 +180,7 @@ async function readSection(page: Page, title: string) {
       (element) => element.childNodes[0]?.textContent?.trim() === title,
     );
     if (!heading) throw new Error(`Missing fixture heading: ${title}`);
-    root.scrollTop += heading.getBoundingClientRect().top - root.getBoundingClientRect().top - 22;
+    heading.scrollIntoView({ block: 'start', behavior: 'instant' });
   }, title);
 }
 test.use({ launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } });
@@ -355,11 +355,11 @@ test.describe('production Wiki atlas', () => {
     expect(errors).toEqual([]);
   });
 
-  for (const width of [1024, 1440]) {
-    test(`desktop ${width}: article scrolling changes the visual without moving its frame and detail links restore reading position`, async ({
+  for (const width of [1024, 1366, 1440]) {
+    test(`desktop ${width}: header scrolls away before navigation and visual pin and detail links restore reading position`, async ({
       page,
     }) => {
-      await page.setViewportSize({ width, height: 900 });
+      await page.setViewportSize({ width, height: 768 });
       await setup(page);
       await page.goto('/#library');
       await expect(page.locator('.atlas-model canvas')).toBeVisible();
@@ -369,14 +369,27 @@ test.describe('production Wiki atlas', () => {
       const initialRight = (await right.boundingBox())!;
       expect(initialRight.x).toBeGreaterThanOrEqual(initialLeft.x + initialLeft.width);
       expect(Math.abs(initialRight.y - initialLeft.y)).toBeLessThanOrEqual(2);
-      const initialWindowScroll = await page.evaluate(() => window.scrollY);
+      const nav = page.getByRole('navigation', { name: 'プロペラ製作の工程' });
+      const initialNav = (await nav.boundingBox())!;
+      await page.mouse.move(initialRight.x + 80, initialRight.y + 100);
+      await page.mouse.wheel(0, 80);
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+      await expect.poll(async () => (await left.boundingBox())!.y).toBeLessThan(initialLeft.y - 40);
+      expect((await nav.boundingBox())!.y).toBeGreaterThan(0);
+      await page.evaluate((top) => window.scrollTo({ top, behavior: 'instant' }), initialNav.y);
+      await expect.poll(async () => (await nav.boundingBox())!.y).toBeCloseTo(0, 0);
+      const pinnedLeft = (await left.boundingBox())!;
+      expect(pinnedLeft.y).toBeLessThan(90);
+      expect(pinnedLeft.y + pinnedLeft.height).toBeLessThanOrEqual(768);
+      expect(pinnedLeft.height).toBeGreaterThan(640);
+      await page.screenshot({ path: 'test-results/wiki-pinned-' + width + '.png' });
 
       await readSection(page, '型の工程を読む');
       await expect(page.locator('.atlas-follow')).toContainText('型の工程を読む');
       await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'mold');
       await expect(left.getByRole('slider')).toHaveValue('2');
-      expect((await left.boundingBox())!.y).toBeCloseTo(initialLeft.y, 0);
-      expect(await page.evaluate(() => window.scrollY)).toBe(initialWindowScroll);
+      expect((await left.boundingBox())!.y).toBeCloseTo(pinnedLeft.y, 0);
+      expect((await nav.boundingBox())!.y).toBeCloseTo(0, 0);
 
       await left.getByLabel('工程図の手順', { exact: true }).selectOption('1');
       await expect(
@@ -390,20 +403,20 @@ test.describe('production Wiki atlas', () => {
       await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'skin');
       await expect(left.getByRole('slider')).toHaveValue('3');
       await expect(right.locator('.gw-markdown img.gw-image')).toBeVisible();
-      expect((await left.boundingBox())!.y).toBeCloseTo(initialLeft.y, 0);
+      expect((await left.boundingBox())!.y).toBeCloseTo(pinnedLeft.y, 0);
       const inlineImage = await right.locator('.gw-markdown img.gw-image').elementHandle();
-      const beforeVisualSwitch = await right.evaluate((root) => root.scrollTop);
+      const beforeVisualSwitch = await page.evaluate(() => window.scrollY);
       await left.getByRole('button', { name: '実写真', exact: true }).click();
       await expect(left.locator('.atlas-visual-body img')).toBeVisible();
       await expect(left.locator('figcaption')).toHaveText('fixture.svg');
       expect(await inlineImage!.evaluate((image) => image.isConnected)).toBe(true);
-      expect(await right.evaluate((root) => root.scrollTop)).toBe(beforeVisualSwitch);
+      expect(await page.evaluate(() => window.scrollY)).toBe(beforeVisualSwitch);
       await left.getByRole('button', { name: '動かして見る', exact: true }).click();
       await expect(left.locator('.process-visual')).toHaveAttribute('data-process-stage', 'skin');
 
       await readSection(page, '型の工程を読む');
       await expect(left.getByRole('slider')).toHaveValue('2');
-      const previousScroll = await right.evaluate((root) => root.scrollTop);
+      const previousScroll = await page.evaluate(() => window.scrollY);
       const detailLink = right.getByRole('link', { name: 'ウェブ治具の詳細', exact: true }).first();
       const linkColor = await detailLink.evaluate((element) => getComputedStyle(element).color);
       const textColor = await right
@@ -421,14 +434,12 @@ test.describe('production Wiki atlas', () => {
       );
       await readSection(page, '溝に差し込む');
       await expect(left.getByRole('slider')).toHaveValue('2');
-      expect((await left.boundingBox())!.y).toBeCloseTo(detailLeft.y, 0);
+      expect((await left.boundingBox())!.y).toBeCloseTo(pinnedLeft.y, 0);
       await page.goBack();
       await expect(page).toHaveURL(/#library$/);
       await expect(right.locator('h2').first()).toHaveText(overview.title);
       await expect
-        .poll(async () =>
-          Math.abs((await right.evaluate((root) => root.scrollTop)) - previousScroll),
-        )
+        .poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - previousScroll))
         .toBeLessThanOrEqual(3);
       await expect(left.getByRole('slider')).toHaveValue('2');
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

@@ -69,6 +69,19 @@ export function WikiAtlasPage({ stageId, pageId }: { stageId: string; pageId?: s
     [recordings],
   );
   useEffect(() => {
+    const nav = stageNav.current;
+    if (!nav) return;
+    const measure = () => {
+      nav
+        .closest<HTMLElement>('.wiki-atlas')
+        ?.style.setProperty('--atlas-nav-height', `${nav.getBoundingClientRect().height}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    measure();
+    return () => observer.disconnect();
+  }, [page?.id]);
+  useEffect(() => {
     const root = copy.current;
     if (!root || !page) return;
     let frame = 0;
@@ -78,7 +91,7 @@ export function WikiAtlasPage({ stageId, pageId }: { stageId: string; pageId?: s
       frame = requestAnimationFrame(() => {
         const headings = Array.from(root.querySelectorAll<HTMLElement>('[data-wiki-heading]'));
         const top = matchMedia('(min-width: 1024px)').matches
-          ? root.getBoundingClientRect().top + 100
+          ? (stageNav.current?.getBoundingClientRect().bottom ?? 50) + 100
           : 180;
         const current = headings.filter((h) => h.getBoundingClientRect().top <= top).at(-1);
         const title = current?.dataset.wikiTitle ?? '';
@@ -103,13 +116,13 @@ export function WikiAtlasPage({ stageId, pageId }: { stageId: string; pageId?: s
       });
     };
     const scrolled = () => {
-      readingPositions.set(positionKey, root.scrollTop);
+      readingPositions.set(positionKey, window.scrollY);
       if (readingPositions.size > 40)
         readingPositions.delete(readingPositions.keys().next().value!);
       update();
     };
     root.addEventListener('scroll', scrolled, { passive: true });
-    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('scroll', scrolled, { passive: true });
     const observer = new ResizeObserver(update);
     observer.observe(root);
     for (const img of root.querySelectorAll('img')) observer.observe(img);
@@ -117,7 +130,7 @@ export function WikiAtlasPage({ stageId, pageId }: { stageId: string; pageId?: s
     return () => {
       cancelAnimationFrame(frame);
       root.removeEventListener('scroll', scrolled);
-      window.removeEventListener('scroll', update);
+      window.removeEventListener('scroll', scrolled);
       observer.disconnect();
     };
   }, [page?.id, page?.body, sections, stageId, detail?.step, detail?.photoId, follow, positionKey]);
@@ -133,8 +146,7 @@ export function WikiAtlasPage({ stageId, pageId }: { stageId: string; pageId?: s
       );
     if (target) target.scrollIntoView({ block: 'start' });
     else {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      copy.current?.scrollTo({ top: readingPositions.get(positionKey) ?? 0, behavior: 'instant' });
+      window.scrollTo({ top: readingPositions.get(positionKey) ?? 0, behavior: 'instant' });
     }
   }, [stageId, pageId, pageLocation, positionKey]);
   if (!auth || !atlas || !stage || !page) return <p role="status">技術Wikiを読み込んでいます…</p>;

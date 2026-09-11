@@ -536,11 +536,13 @@
     padding-top: 18px;
     padding-bottom: 16px;
   }
+  /* Scroll the header away before pinning the stage navigation and visual. */
+  body:has(.wiki-atlas) .sidebar {
+    position: relative;
+  }
   .wiki-atlas {
-    height: calc(100dvh - 142px);
-    min-height: 500px;
-    display: flex;
-    flex-direction: column;
+    --atlas-nav-height: 50px;
+    --atlas-visual-top: calc(var(--atlas-nav-height) + 16px);
   }
   .wiki-atlas .page-title {
     margin-bottom: 6px;
@@ -557,6 +559,9 @@
     min-height: 30px;
   }
   .atlas-stages {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     margin-bottom: 16px;
     flex-shrink: 0;
     padding: 4px;
@@ -568,13 +573,12 @@
   .atlas-layout {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
     gap: 28px;
-    flex: 1;
-    min-height: 0;
+    min-height: calc(100dvh - var(--atlas-visual-top) - 16px);
   }
   .atlas-visual {
-    position: relative;
-    top: 0;
-    height: 100%;
+    position: sticky;
+    top: var(--atlas-visual-top);
+    height: calc(100dvh - var(--atlas-visual-top) - 16px);
     display: flex;
     flex-direction: column;
   }
@@ -597,14 +601,13 @@
     flex-shrink: 0;
   }
   .atlas-copy {
-    height: 100%;
     width: 100%;
     max-width: none;
     margin: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
     padding: 0 18px 24px 2px;
+  }
+  .atlas-copy .gw-markdown [data-wiki-heading] {
+    scroll-margin-top: calc(var(--atlas-visual-top) + 18px);
   }
   .atlas-copy > h2 {
     font-size: 26px;
