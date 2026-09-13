@@ -8,6 +8,7 @@ export interface ContextMesh {
   group: ContextPart;
   family: 'airframe' | 'propeller';
   assembly?: 'upper' | 'under';
+  opposite?: boolean;
   color: string;
   vertices: number[];
   indices: number[];
@@ -216,6 +217,7 @@ export function aircraftGeometry(model: AtlasModel) {
         group,
         family: 'propeller',
         assembly: part.assembly,
+        opposite,
         color: part.color,
       };
     });

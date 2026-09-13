@@ -1,7 +1,9 @@
+import { aircraftJourney } from './aircraftJourney';
 import type { AircraftView, ContextMesh, ContextPart, Vec3 } from './aircraftGeometry';
 
 export interface AircraftCamera {
   view: AircraftView;
+  journeyTime?: number;
   yaw: number;
   pitch: number;
   zoom: number;
@@ -37,14 +39,17 @@ export function createAircraftRenderer(
     attribute vec3 a_position, a_normal, a_color;
     uniform vec3 u_center, u_right, u_up, u_forward;
     uniform vec2 u_scale;
-    uniform float u_shift, u_rotation;
+    uniform float u_shift, u_rotation, u_distance;
     varying vec3 v_color;
     vec3 rotate(vec3 p){float c=cos(u_rotation),s=sin(u_rotation);return vec3(p.x,p.y*c-p.z*s,p.y*s+p.z*c);}
     void main(){
       vec3 p=a_position; p.x+=u_shift;
       if(abs(u_rotation)>.00001){p.z-=.5;p=rotate(p);p.z+=.5;}
       p-=u_center;
-      gl_Position=vec4(dot(p,u_right)*u_scale.x,dot(p,u_up)*u_scale.y,-dot(p,u_forward)*.025,1.);
+      if(u_distance>0.) {
+        float depth=u_distance-dot(p,u_forward);
+        gl_Position=vec4(dot(p,u_right)*u_scale.x,dot(p,u_up)*u_scale.y,1.00008*depth-.0200008,depth);
+      } else gl_Position=vec4(dot(p,u_right)*u_scale.x,dot(p,u_up)*u_scale.y,-dot(p,u_forward)*.025,1.);
       vec3 n=normalize(rotate(a_normal));
       float light=.56+.40*abs(dot(n,normalize(vec3(.55,-.35,.8))));
       v_color=a_color*light;
@@ -70,9 +75,17 @@ export function createAircraftRenderer(
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('Program linking failed');
   const locations = Object.fromEntries(
-    ['u_center', 'u_right', 'u_up', 'u_forward', 'u_scale', 'u_shift', 'u_rotation', 'u_alpha'].map(
-      (key) => [key, gl.getUniformLocation(program, key)],
-    ),
+    [
+      'u_center',
+      'u_right',
+      'u_up',
+      'u_forward',
+      'u_scale',
+      'u_shift',
+      'u_rotation',
+      'u_alpha',
+      'u_distance',
+    ].map((key) => [key, gl.getUniformLocation(program, key)]),
   );
   const attributes = ['a_position', 'a_normal', 'a_color'].map((key) =>
     gl.getAttribLocation(program, key),
@@ -127,7 +140,7 @@ export function createAircraftRenderer(
     gl!.clear(gl!.COLOR_BUFFER_BIT | gl!.DEPTH_BUFFER_BIT);
     const yaw = (camera.yaw * Math.PI) / 180;
     const pitch = (camera.pitch * Math.PI) / 180;
-    const forward: Vec3 = [
+    let forward: Vec3 = [
       Math.cos(pitch) * Math.cos(yaw),
       Math.cos(pitch) * Math.sin(yaw),
       Math.sin(pitch),
@@ -139,7 +152,7 @@ export function createAircraftRenderer(
       Math.cos(pitch),
     ];
     if (camera.view === 'blade') [right, up] = [up, right.map((v) => -v) as Vec3];
-    const center = [...centers[camera.view]] as Vec3;
+    let center = [...centers[camera.view]] as Vec3;
     if (camera.view === 'section') center[0] -= camera.opening * 0.1;
     if (camera.view === 'blade') center[0] -= camera.opening * 0.11;
     const base =
@@ -188,11 +201,21 @@ export function createAircraftRenderer(
       scale =
         Math.min(width / (maxX - minX), height / Math.max(5, maxY - minY)) * 0.8 * camera.zoom;
     }
+    const journey =
+      camera.journeyTime === undefined ? null : aircraftJourney(camera.journeyTime, width / height);
+    if (journey) {
+      center = journey.target;
+      forward = journey.forward;
+      right = journey.right;
+      up = journey.up;
+      scale = height / (2 * Math.tan((17 * Math.PI) / 180));
+    }
     const project = (point: Vec3) => {
       const p = point.map((v, k) => v - center[k]);
+      const depth = journey ? Math.max(0.01, journey.distance - dot(p, forward)) : 1;
       return {
-        x: 50 + (dot(p, right) * scale * 100) / width,
-        y: 50 - (dot(p, up) * scale * 100) / height,
+        x: 50 + (dot(p, right) * scale * 100) / (width * depth),
+        y: 50 - (dot(p, up) * scale * 100) / (height * depth),
       };
     };
     const landmarks: Record<string, ProjectedPoint> =
@@ -210,6 +233,7 @@ export function createAircraftRenderer(
               tip: project([2.35, 0, 1.89]),
             }
           : {};
+    gl!.uniform1f(locations.u_distance, journey?.distance ?? 0);
     gl!.uniform3fv(locations.u_center, center);
     gl!.uniform3fv(locations.u_right, right);
     gl!.uniform3fv(locations.u_up, up);
@@ -220,7 +244,7 @@ export function createAircraftRenderer(
       (camera.selected === 'propeller'
         ? mesh.family === 'propeller'
         : mesh.group === camera.selected);
-    const meshes = geometry[camera.view];
+    const meshes = journey ? geometry.aircraft : geometry[camera.view];
     const isClose = camera.view === 'blade' || camera.view === 'section';
     function render(mesh: ContextMesh, alpha: number) {
       const packed = cache.get(mesh)!;
@@ -231,25 +255,60 @@ export function createAircraftRenderer(
       });
       gl!.uniform1f(
         locations.u_shift,
-        isClose && mesh.assembly === 'under'
-          ? -camera.opening * (camera.view === 'section' ? 0.27 : 0.3)
-          : 0,
+        journey
+          ? mesh.assembly === 'under' && !mesh.opposite
+            ? -journey.opening * 0.3
+            : 0
+          : isClose && mesh.assembly === 'under'
+            ? -camera.opening * (camera.view === 'section' ? 0.27 : 0.3)
+            : 0,
       );
       gl!.uniform1f(
         locations.u_rotation,
-        !isClose && mesh.family === 'propeller' ? camera.rotation : 0,
+        mesh.family === 'propeller' ? (journey?.rotation ?? (!isClose ? camera.rotation : 0)) : 0,
       );
       gl!.uniform1f(locations.u_alpha, alpha);
       gl!.drawArrays(gl!.TRIANGLES, 0, packed.count);
     }
+    const opacity = (mesh: ContextMesh) =>
+      journey
+        ? mesh.family === 'airframe'
+          ? journey.airframeAlpha
+          : mesh.opposite
+            ? journey.otherBladeAlpha
+            : 1
+        : matches(mesh)
+          ? 1
+          : camera.view === 'aircraft'
+            ? 0.82
+            : 0.32;
+    gl!.depthMask(true);
+    gl!.disable(gl!.BLEND);
+    for (const mesh of meshes) if (opacity(mesh) >= 0.999) render(mesh, 1);
     gl!.enable(gl!.BLEND);
     gl!.blendFuncSeparate(gl!.SRC_ALPHA, gl!.ONE_MINUS_SRC_ALPHA, gl!.ONE, gl!.ONE_MINUS_SRC_ALPHA);
     gl!.depthMask(false);
-    for (const mesh of meshes)
-      if (!matches(mesh)) render(mesh, camera.view === 'aircraft' ? 0.82 : 0.32);
+    for (const mesh of meshes) {
+      const alpha = opacity(mesh);
+      if (alpha > 0.001 && alpha < 0.999) render(mesh, alpha);
+    }
     gl!.depthMask(true);
-    gl!.disable(gl!.BLEND);
-    for (const mesh of meshes) if (matches(mesh)) render(mesh, 1);
+    if (journey) {
+      onProject(
+        null,
+        camera.view === 'aircraft'
+          ? landmarks
+          : journey.opening > 0.6
+            ? {
+                under: project([2.35 - 0.3 * journey.opening, 0, 1.5]),
+                upper: project([2.36, -0.04, 1.6]),
+                web: project([2.35, 0, 1.25]),
+                spar: project([2.35, 0, 0.76]),
+              }
+            : {},
+      );
+      return;
+    }
     const selected = meshes.filter(matches);
     if (camera.selected && selected.length) {
       const points = selected.flatMap((mesh) => {
@@ -278,10 +337,15 @@ export function createAircraftRenderer(
     if (latest) draw(latest);
   });
   observer.observe(canvas);
+  const snapshot = () => {
+    if (latest) draw(latest);
+  };
+  canvas.addEventListener('book-snapshot', snapshot);
   return {
     draw,
     dispose() {
       disposed = true;
+      canvas.removeEventListener('book-snapshot', snapshot);
       observer.disconnect();
       for (const item of cache.values()) gl.deleteBuffer(item.buffer);
       gl.deleteShader(vertex);

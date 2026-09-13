@@ -1,3 +1,4 @@
+import { aircraftJourney } from './aircraftJourney';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { aircraftGeometry, type AircraftView, type ContextPart } from './aircraftGeometry';
 import {
@@ -117,12 +118,14 @@ const angles: Record<AircraftView, [number, number]> = {
 export function AircraftContext3D({
   initialView = 'aircraft',
   readingView,
+  readingTime,
   initialPart,
   initialCamera,
   onCameraChange,
 }: {
   initialView?: AircraftView;
   readingView?: AircraftView;
+  readingTime?: number;
   initialPart?: 'upper' | 'under' | 'web' | 'flange' | 'spar';
   initialCamera?: AircraftCamera;
   onCameraChange?: (camera: AircraftCamera) => void;
@@ -148,6 +151,10 @@ export function AircraftContext3D({
   );
   const [rotation, setRotation] = useState(initialCamera?.rotation ?? 0);
   const [spinning, setSpinning] = useState(false);
+  const [following, setFollowing] = useState(readingTime !== undefined);
+  useEffect(() => {
+    if (readingTime !== undefined) setFollowing(true);
+  }, [readingTime]);
   useEffect(() => {
     if (!readingView) return;
     setView(readingView);
@@ -169,12 +176,38 @@ export function AircraftContext3D({
   const id = useId();
   const geometry = useMemo(() => aircraftGeometry(teachingModel()), []);
   const camera = useMemo<AircraftCamera>(
-    () => ({ view, yaw, pitch, zoom, opening, rotation, selected }),
-    [view, yaw, pitch, zoom, opening, rotation, selected],
+    () => ({
+      view,
+      yaw,
+      pitch,
+      zoom,
+      opening,
+      rotation,
+      selected,
+      journeyTime: following ? readingTime : undefined,
+    }),
+    [view, yaw, pitch, zoom, opening, rotation, selected, following, readingTime],
   );
   const cameraRef = useRef(camera);
   cameraRef.current = camera;
-  const current = VIEWS.find((item) => item.id === view)!;
+  const sourceView = VIEWS.find((item) => item.id === view)!;
+  const current =
+    following && view === 'section'
+      ? {
+          ...sourceView,
+          title: '同じブレードの外皮を開き、内部を見る',
+          explanation:
+            '機体から追ってきた同じ一本のブレードです。under側の外皮だけが離れ、ウェブ・ペラスパー・桁リブはupper側に残ります。スクロールを戻すと、外皮が閉じて機体全体へ戻ります。',
+        }
+      : following && view === 'blade'
+        ? {
+            ...sourceView,
+            explanation:
+              '同じプロペラの一本へ近づいています。軸に近い側が根元、遠い側が先端です。このまま読み進めると外皮が開き、内側の部材が見えてきます。',
+          }
+        : sourceView;
+  const displayedOpening =
+    following && readingTime !== undefined ? aircraftJourney(readingTime).opening : opening;
   const close = view === 'blade' || view === 'section';
   const next = VIEWS[VIEWS.findIndex((item) => item.id === view) + 1];
   useEffect(() => {
@@ -201,8 +234,28 @@ export function AircraftContext3D({
       renderer.current = null;
     };
   }, [geometry]);
+  const renderedTime = useRef(readingTime ?? 0);
   useEffect(() => {
-    renderer.current?.draw(camera);
+    if (camera.journeyTime === undefined) {
+      renderer.current?.draw(camera);
+      return;
+    }
+    const target = camera.journeyTime;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let frame = 0,
+      last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      renderedTime.current = reduced.matches
+        ? target
+        : renderedTime.current + (target - renderedTime.current) * (1 - Math.exp(-dt / 100));
+      if (Math.abs(renderedTime.current - target) < 0.005) renderedTime.current = target;
+      renderer.current?.draw({ ...camera, journeyTime: renderedTime.current });
+      if (renderedTime.current !== target) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
   }, [camera]);
   useEffect(() => {
     onCameraChange?.(camera);
@@ -262,6 +315,14 @@ export function AircraftContext3D({
       className="book-aircraft-context"
       aria-label="機体全体から内部構造を見る3D"
       data-aircraft-view={view}
+      data-journey-time={following ? readingTime?.toFixed(3) : undefined}
+      onPointerDownCapture={(event) => {
+        if ((event.target as HTMLElement).closest('button, input, canvas')) setFollowing(false);
+      }}
+      onKeyDownCapture={(event) => {
+        if (['Enter', ' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key))
+          setFollowing(false);
+      }}
     >
       <nav className="aircraft-levels" aria-label="見る範囲">
         {VIEWS.map((item) => (
@@ -279,7 +340,7 @@ export function AircraftContext3D({
         <h3>{current.title}</h3>
         <p>{current.explanation}</p>
       </div>
-      {view === 'section' && (
+      {view === 'section' && !following && (
         <div className="aircraft-section-locator">
           <svg
             viewBox="0 0 420 66"
@@ -408,7 +469,30 @@ export function AircraftContext3D({
             </span>
           </div>
         )}
-        {view === 'blade' && landmarks.root && landmarks.tip && (
+        {following && landmarks.web && (
+          <div className="aircraft-journey-labels" aria-label="開いたブレードの部材">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {(
+                [
+                  ['under', 18, 24],
+                  ['upper', 80, 18],
+                  ['web', 80, 54],
+                  ['spar', 18, 84],
+                ] as const
+              ).map(([part, x, y]) => (
+                <g key={part}>
+                  <line x1={landmarks[part]?.x} y1={landmarks[part]?.y} x2={x} y2={y} />
+                  <circle cx={landmarks[part]?.x} cy={landmarks[part]?.y} r=".7" />
+                </g>
+              ))}
+            </svg>
+            <span style={{ left: '18%', top: '24%' }}>under 外皮</span>
+            <span style={{ left: '80%', top: '18%' }}>upper 外皮</span>
+            <span style={{ left: '80%', top: '54%' }}>ウェブ</span>
+            <span style={{ left: '18%', top: '84%' }}>ペラスパー・桁リブ</span>
+          </div>
+        )}
+        {view === 'blade' && !following && landmarks.root && landmarks.tip && (
           <div className="aircraft-blade-ends" aria-label="ブレードの根元と先端">
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <line
@@ -442,8 +526,10 @@ export function AircraftContext3D({
             </span>
           </div>
         )}
-        {view === 'blade' && <span className="aircraft-canvas-note">同じ一本を、横向きに拡大</span>}
-        {view === 'section' && (
+        {view === 'blade' && !following && (
+          <span className="aircraft-canvas-note">同じ一本を、横向きに拡大</span>
+        )}
+        {view === 'section' && !following && (
           <span className="aircraft-canvas-note">短く切り出した断面の説明模型</span>
         )}
         {error && (
@@ -473,14 +559,14 @@ export function AircraftContext3D({
       {close ? (
         <div className="aircraft-opening">
           <label htmlFor={`${id}-open`}>
-            underを開く <output>{Math.round(opening * 100)}%</output>
+            underを開く <output>{Math.round(displayedOpening * 100)}%</output>
             <input
               id={`${id}-open`}
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={opening}
+              value={displayedOpening}
               onChange={(event) => setOpening(Number(event.target.value))}
             />
           </label>

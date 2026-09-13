@@ -1,3 +1,4 @@
+import { SceneTransition } from '../components/book/SceneTransition';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
@@ -324,7 +325,7 @@ const BookSection = memo(function BookSection({
               人力飛行機は、人がペダルをこぐ力で飛ぶ飛行機です。スクロールすると図も動きます。まずは3D表示で、機体全体を眺めてみましょう。大きく横に広がるのが「主翼」、後ろにある小さな翼が「尾翼」です。人が乗る操縦席は、主翼の中央付近の下にあります。
             </p>
             <p data-view="propeller">
-              機体の前端にあたる「機首」にあるのが、回転して機体を前へ進める「プロペラ」です。この教材では、このプロペラの製作を学びます。3D表示ではプロペラに色を付けています。「プロペラ」を選ぶと拡大でき、さらに羽根の一本である「ブレード」へ進めます。
+              機体の前端にあたる「機首」にあるのが、回転して機体を前へ進める「プロペラ」です。この教材では、このプロペラの製作を学びます。読み進めると、同じ機体のプロペラへカメラが近づきます。二本の羽根の位置を確かめてから、その一本へ目を向けましょう。
             </p>
             <h2>ペダルの力は、どうやって前に進む力になるのでしょうか</h2>
             <p>
@@ -361,7 +362,7 @@ const BookSection = memo(function BookSection({
             </p>
             <p>
               <BookText>
-                左の3D表示で「断面と内部」を選び、外皮を開いてみましょう。薄い殻と、その間に立つ板を見分けてください。これから読む工程は、内側を見られるうちに部材を組み、接する場所を確かめていく順序でもあります。
+                読み進めると、左の3Dでは同じブレードの外皮が開いていきます。薄い殻と、その間に立つ板を見分けてください。これから読む工程は、内側を見られるうちに部材を組み、接する場所を確かめていく順序でもあります。
               </BookText>
             </p>
             {source.data?.stages.web?.practice
@@ -853,6 +854,7 @@ export function TextbookPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchTrigger = useRef<HTMLButtonElement>(null);
   const [overviewView, setOverviewView] = useState<AircraftView>('aircraft');
+  const [overviewTime, setOverviewTime] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const syncScroll = useRef<() => void>(() => {});
   const activeCursor = useRef(cursor);
@@ -1143,7 +1145,26 @@ export function TextbookPage() {
           : 48 + (nav.current?.getBoundingClientRect().height ?? 42) + 40;
         const view = views.filter((el) => el.getBoundingClientRect().top <= viewLine).at(-1)
           ?.dataset.view as AircraftView | undefined;
-        setOverviewView(view ?? (page ? 'blade' : 'aircraft'));
+        setOverviewView(view ?? (page ? 'section' : 'aircraft'));
+        const times = [0, 6.5, 11, 12];
+        const active = views.filter((el) => el.getBoundingClientRect().top <= viewLine).length - 1;
+        if (page) setOverviewTime(18);
+        else if (active < 0) setOverviewTime(0);
+        else if (reduced.matches && active === 3) setOverviewTime(18);
+        else {
+          const top = views[active].getBoundingClientRect().top;
+          const end = views[active + 1]?.getBoundingClientRect().top ?? top + 500;
+          const fraction = reduced.matches
+            ? 0
+            : Math.max(0, Math.min(1, (viewLine - top) / Math.max(1, end - top)));
+          setOverviewTime(
+            Math.round(
+              ((times[active] ?? 18) +
+                ((times[active + 1] ?? 18) - (times[active] ?? 18)) * fraction) *
+                1000,
+            ) / 1000,
+          );
+        }
         setMode('model');
       } else {
         const items = Array.from(section.querySelectorAll<HTMLElement>('[data-step]'));
@@ -1217,6 +1238,7 @@ export function TextbookPage() {
           aircraftCamera.current = { scope: `${current.id}-${mode}`, camera };
         }}
         readingView={current.id === 'overview' ? overviewView : undefined}
+        readingTime={current.id === 'overview' ? overviewTime : undefined}
         initialView={
           mode === 'aircraft' || current.id === 'overview'
             ? 'aircraft'
@@ -1374,7 +1396,13 @@ export function TextbookPage() {
                   機体と部材を3Dで見る
                 </button>
               </div>
-              <div className="book-visual-stage">{!large && visual}</div>
+              <div className="book-visual-stage">
+                <SceneTransition
+                  scene={`${current.id}-${mode}-${mode === 'process' ? Math.floor(step) : ''}`}
+                >
+                  {!large && visual}
+                </SceneTransition>
+              </div>
               {(mode === 'model' || mode === 'aircraft') && current.id !== 'overview' && (
                 <p className="book-model-context">
                   「機体全体」から順に拡大すると、いま作っている部材の位置が分かります。作業の手順は「工程アニメーション」で見られます。

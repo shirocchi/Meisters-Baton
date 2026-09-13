@@ -167,3 +167,41 @@ test('reduced motion shows action endpoints while scrolling and disclosures surv
   await section(page, 'skin-2').evaluate((el) => el.scrollIntoView({ block: 'start' }));
   await expect(example).toHaveAttribute('open', '');
 });
+
+test('the aircraft journey scrubs continuously in one canvas and reverses to the same pose', async ({
+  page,
+}) => {
+  await page.goto('/#library/textbook/overview/0');
+  const aircraft = page.locator('.book-visual [data-aircraft-view]');
+  const canvas = await aircraft.locator('canvas').elementHandle();
+  const seek = async (fraction: number) => {
+    await page.locator('[data-view="aircraft"]').evaluate((el, fraction) => {
+      const next = document.querySelector('[data-view="propeller"]')!;
+      const top = el.getBoundingClientRect().top + scrollY;
+      const bottom = next.getBoundingClientRect().top + scrollY;
+      scrollTo({ top: top + (bottom - top) * fraction - 130, behavior: 'instant' });
+    }, fraction);
+  };
+  await seek(0.5);
+  await expect
+    .poll(async () => Number(await aircraft.getAttribute('data-journey-time')))
+    .toBeGreaterThan(3);
+  const halfway = Number(await aircraft.getAttribute('data-journey-time'));
+  await seek(0.8);
+  await expect
+    .poll(async () => Number(await aircraft.getAttribute('data-journey-time')))
+    .toBeGreaterThan(halfway + 1);
+  expect(await canvas!.evaluate((el) => el === document.querySelector('.book-visual canvas'))).toBe(
+    true,
+  );
+  await seek(0.5);
+  await expect
+    .poll(async () => Number(await aircraft.getAttribute('data-journey-time')))
+    .toBeCloseTo(halfway, 1);
+  await page
+    .locator('[data-view="section"]')
+    .evaluate((el) => scrollTo(0, el.getBoundingClientRect().top + scrollY + 400));
+  await expect(aircraft.locator('.aircraft-journey-labels')).toBeVisible();
+  await expect(aircraft.getByRole('slider', { name: /underを開く/ })).toHaveValue('1');
+  await expect(aircraft.getByRole('alert')).toHaveCount(0);
+});

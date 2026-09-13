@@ -20,7 +20,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, { failed: b
   render() {
     return this.state.failed ? (
       <main className="fatal">
-        <img src="/icon.svg" width="64" alt="" />
+        <img src={`${import.meta.env.BASE_URL}icon.svg`} width="64" alt="" />
         <h1>画面を開き直してください</h1>
         <p>保存済みの記録は端末に残っています。</p>
         <button onClick={() => location.reload()}>再読み込み</button>
@@ -41,4 +41,4 @@ if (
   'serviceWorker' in navigator &&
   location.protocol.startsWith('http')
 )
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});

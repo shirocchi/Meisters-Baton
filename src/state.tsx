@@ -137,7 +137,7 @@ export function BatonProvider({ children }: { children: ReactNode }) {
   if (!data || !settings)
     return (
       <main className="boot">
-        <img src="/icon.svg" width="58" alt="" />
+        <img src={`${import.meta.env.BASE_URL}icon.svg`} width="58" alt="" />
         <p>工房をひらいています</p>
         <span className="spinner" />
       </main>

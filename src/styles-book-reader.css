@@ -2372,3 +2372,25 @@ body .modal:has(.book-search) .modal-head {
 .book-story-section .book-page-menu {
   box-shadow: none;
 }
+
+/* Retain the last rendered picture while the next engineering scene appears. */
+.book-scene-transition {
+  position: relative;
+  isolation: isolate;
+}
+.book-scene-outgoing {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--book-paper, #fafbf8);
+}
+.book-scene-outgoing:empty {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .book-scene-outgoing {
+    display: none;
+  }
+}
