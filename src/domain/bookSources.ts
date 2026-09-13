@@ -13,6 +13,9 @@ export interface BookMedia {
   url: string;
   kind?: string;
   localUrl?: string;
+  asset?: string;
+  width?: number;
+  height?: number;
 }
 export interface BookPractice {
   id: string;

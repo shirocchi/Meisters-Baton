@@ -109,12 +109,25 @@ function Photo({
   const video = /\.(mp4|mov)$/i.test(media.filename);
   if (!media.localUrl) return null;
   return (
-    <figure className="book-photo">
+    <figure
+      className="book-photo book-photo-bookmark"
+      data-photo-bookmark={media.asset ?? media.filename}
+    >
+      <div className="book-photo-bookmark-label">
+        <Camera size={15} aria-hidden="true" /> 写真のしおり <span>{figure}</span>
+      </div>
       {video ? (
         <video controls preload="metadata" src={media.localUrl} aria-label={media.caption} />
       ) : (
         <button onClick={() => onOpen(media)} aria-label={`写真を拡大：${media.caption}`}>
-          <img loading="lazy" src={media.localUrl} alt={media.caption} />
+          <img
+            loading="lazy"
+            decoding="async"
+            src={media.localUrl}
+            alt={media.caption}
+            width={media.width}
+            height={media.height}
+          />
           <span>
             <Maximize2 size={14} />
             拡大
@@ -179,14 +192,16 @@ function Practice({
         <TransferDetail figure={figure(0)} photoFigure={figure(1)} />
       )}
       {item.id === 'finish-masking-transfer' && <MaskingTransferFigure figure={figure(0)} />}
-      {item.media.slice(0, 2).map((media, i) => (
-        <Photo
-          key={`${item.id}-${i}`}
-          media={media}
-          onOpen={onOpen}
-          figure={figure(i + Number(hasDetail(item)))}
-        />
-      ))}
+      <div className="book-photo-bookmarks">
+        {item.media.map((media, i) => (
+          <Photo
+            key={`${item.id}-${i}`}
+            media={media}
+            onOpen={onOpen}
+            figure={figure(i + Number(hasDetail(item)))}
+          />
+        ))}
+      </div>
       {item.actions.length > 0 && (
         <ol className="book-actions">
           {item.actions.map((action, i) => (
@@ -324,6 +339,9 @@ const BookSection = memo(function BookSection({
             <p className="book-lead" data-view="aircraft">
               人力飛行機は、人がペダルをこぐ力で飛ぶ飛行機です。スクロールすると図も動きます。まずは3D表示で、機体全体を眺めてみましょう。大きく横に広がるのが「主翼」、後ろにある小さな翼が「尾翼」です。人が乗る操縦席は、主翼の中央付近の下にあります。
             </p>
+            {source.data?.stages.overview?.practice[0]?.media.map((media) => (
+              <Photo key={media.filename} media={media} onOpen={setPhoto} figure="図0-0" />
+            ))}
             <p data-view="propeller">
               機体の前端にあたる「機首」にあるのが、回転して機体を前へ進める「プロペラ」です。この教材では、このプロペラの製作を学びます。読み進めると、同じ機体のプロペラへカメラが近づきます。二本の羽根の位置を確かめてから、その一本へ目を向けましょう。
             </p>

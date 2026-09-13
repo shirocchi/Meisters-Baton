@@ -6,7 +6,7 @@
 
 [教材を開く（ログイン不要）](https://shirocchi.github.io/Meisters-Baton/#library/textbook/overview/0)
 
-GitHub Pagesは同じ `codex/growing-textbook` ブランチのコミットから生成します。配信元コミットは公開先の `preview-commit.txt` で確認できます。本文・用語辞書・付箋・工程図・3Dを共有でき、元写真・動画は含みません。
+GitHub Pagesは同じ `codex/growing-textbook` ブランチのコミットから生成します。配信元コミットは公開先の `preview-commit.txt` で確認できます。本文・用語辞書・付箋・工程図・3Dに加え、選定した製作写真・図解71点を共有できます。
 
 公開更新はソースをコミット・pushした後、`node scripts/deploy-textbook-pages.mjs` を実行します。スクリプトはコミットから一時ビルドを作り、生成物だけを `codex/textbook-pages` へ送ります。この配信ブランチでは編集しません。GitHub PagesのSourceは「Deploy from a branch」、対象は `codex/textbook-pages` のルートです。現在のGitHub認証にはworkflow追加権限がないため、ソースpushだけでの自動公開は行いません。
 
@@ -47,9 +47,11 @@ npm run dev -- --port 5182
 
 ## 写真・動画の扱い
 
-GitHubには非公開Discordアーカイブの元画像・動画、ローカル資料JSON、認証情報を含めていません。通常のclone／buildでは写真が「資料が未接続です」と表示されます。元資料を接続したPCでは、6章29実例・38配置の写真／動画を本文に表示しています。
+ユーザーの写真掲載依頼に基づき、指定されたプロペラ班Discord資料から製作に関わる写真・図解71点を選定しました。`src/data/bookPhotoSources.json` で工程・説明・作業日・原記録URLを管理し、`public/textbook/photos/` のWebP画像をGitHub Pagesでも配信します。ローカル資料を接続しないPCでも表示・拡大できます。
 
-資料の読み込みは開発サーバーのループバック接続に限定しています。資料を閲覧できる人へ別途共有し、各PCで接続するか、認証付きの配信先を用意する必要があります。元資料を公開リポジトリの `public/` へ置かないでください。接続方式と現在の収録範囲は [textbook.md](textbook.md) に記載しています。
+型の基準と下地、外皮・コア・袋の準備、フランジの位置、ウェブとスパー、貼り合わせ、ペラ端、塗装に割り当てています。写真は「写真のしおり」として該当手順内に置き、機体の全体写真だけは序章にも載せています。試作・完成後の状態・提案図を説明で区別し、写真だけで原因や合否を断定しません。
+
+選定画像は向きを正し、長辺1600px以内のWebPに変換しました。EXIF等の付加メタデータを削除し、元画像・動画・全Discordログ・人物情報の一覧・認証情報は含めません。元のVaultには変更を加えていません。今回の公開範囲は選定画像と編集した説明です。
 
 ## アニメーションの参照
 

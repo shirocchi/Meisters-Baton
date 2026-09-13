@@ -2394,3 +2394,65 @@ body .modal:has(.book-search) .modal-head {
     display: none;
   }
 }
+
+/* Photographic bookmarks sit beside the procedure they document. */
+.book-photo-bookmarks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 24px 0;
+  align-items: start;
+}
+.book-photo-bookmarks > :only-child {
+  grid-column: 1 / -1;
+}
+.book-photo.book-photo-bookmark {
+  margin: 0;
+  padding: 12px;
+  background: #fffaf0;
+  border: 1px solid #e5d9be;
+  border-top: 3px solid #b38c42;
+  border-radius: 3px;
+  min-width: 0;
+}
+.book-copy > .book-photo-bookmark,
+.book-story-section > .book-photo-bookmark {
+  margin-block: 24px;
+}
+.book-photo-bookmark-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #71551e;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.book-photo-bookmark-label span {
+  margin-left: auto;
+  font-weight: 400;
+}
+.book-photo-bookmark > button {
+  width: 100%;
+  background: #f2eee5;
+}
+.book-photo.book-photo-bookmark img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+}
+.book-photo.book-photo-bookmark figcaption {
+  padding: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.book-photo-bookmark figcaption > span {
+  font-size: 11px;
+}
+@media (max-width: 1100px) {
+  .book-photo-bookmarks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

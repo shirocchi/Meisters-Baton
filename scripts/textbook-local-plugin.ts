@@ -35,7 +35,9 @@ export function textbookLocalSources(): Plugin {
           res.setHeader('X-Content-Type-Options', 'nosniff');
           if (pathname === '/__textbook/sources') {
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ version: raw.version, stages: raw.stages }));
+            res.end(
+              JSON.stringify({ version: raw.version, stages: raw.stages, localArchive: true }),
+            );
             return;
           }
           const item = media.find((m) => pathname === `/__textbook/media/${m.id}`);
