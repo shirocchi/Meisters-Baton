@@ -1,0 +1,11 @@
+const PREFIX='baton-4bed121e-';
+const CACHE=PREFIX+'56f00fd27120';
+const SHELL=["/Meisters-Baton/","/Meisters-Baton/index.html","/Meisters-Baton/icon.svg","/Meisters-Baton/manifest.webmanifest","/Meisters-Baton/third-party-notices.txt","/Meisters-Baton/icons/icon-192.png","/Meisters-Baton/icons/icon-512.png","/Meisters-Baton/assets/AtlasModel-CYRWz8I-.js","/Meisters-Baton/assets/AtlasModel-DkqGD3YW.css","/Meisters-Baton/assets/BookReader-DhLEX0k5.css","/Meisters-Baton/assets/BookReader-DrG7MqXH.js","/Meisters-Baton/assets/GrowiWiki-CeK1Urxn.js","/Meisters-Baton/assets/GrowiWiki-DQ8lD0f6.css","/Meisters-Baton/assets/WikiAtlas-AxYscU7T.js","/Meisters-Baton/assets/WikiAtlas-ZFcISQJk.css","/Meisters-Baton/assets/WikiMedia-8kCBWjsa.js","/Meisters-Baton/assets/esm-DCEPpkWn.js","/Meisters-Baton/assets/esm-DdopjtkZ.js","/Meisters-Baton/assets/index-BsBEWGrP.css","/Meisters-Baton/assets/index-CxA8R2N5.js","/Meisters-Baton/assets/web-C6dRynd6.js","/Meisters-Baton/assets/web-CFlMcM_h.js"];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith(PREFIX)&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{
+ const request=event.request,url=new URL(request.url);
+ if(request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;
+ if(request.mode==='navigate') {event.respondWith(fetch(request).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put('/Meisters-Baton/index.html',copy));}return response;}).catch(()=>caches.match('/Meisters-Baton/index.html')));return;}
+ if(url.pathname.startsWith('/Meisters-Baton/assets/')||url.pathname.startsWith('/Meisters-Baton/icons/')||url.pathname==='/Meisters-Baton/icon.svg'||url.pathname==='/Meisters-Baton/third-party-notices.txt')event.respondWith(caches.match(request).then(hit=>hit||fetch(request).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(request,copy));}return response;})));
+});
