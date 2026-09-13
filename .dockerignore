@@ -18,6 +18,7 @@ resources
 tests
 scripts/*
 !scripts/build-sw.mjs
+!scripts/textbook-local-plugin.ts
 *.log
 *.sqlite
 *.sqlite-*
