@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
-import sources from '../src/data/bookPhotoSources.json';
+import sources from '../src/components/book/photoSources.json';
 import { PROCESS_STEPS } from '../src/components/atlas/processStages';
 
 describe('published photo bookmarks', () => {
@@ -25,7 +25,7 @@ describe('published photo bookmarks', () => {
     }
   });
   it('publishes edited evidence without local paths, credentials, or raw archive fields', () => {
-    const json = readFileSync('src/data/bookPhotoSources.json', 'utf8');
+    const json = readFileSync('src/components/book/photoSources.json', 'utf8');
     expect(json).not.toMatch(
       /\/Users\/|sourceRoot|sourceUrl|proxy_url|avatar|mention_roles|cdn.discordapp|localUrl/,
     );

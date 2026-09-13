@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import publishedPhotos from '../../data/bookPhotoSources.json';
+import publishedPhotos from './photoSources.json';
 import type { BookSources } from '../../domain/bookSources';
 const published: BookSources = {
   version: publishedPhotos.version,
