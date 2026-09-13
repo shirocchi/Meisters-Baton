@@ -8,7 +8,7 @@ test.describe('article reading', () => {
   }) => {
     await connect(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/#library');
+    await page.goto('/#library/wiki/home');
     await page.getByLabel('モニターを最小化', { exact: true }).click();
     await expect(page.locator('.ww-hero,.ww-metrics')).toHaveCount(0);
     await expect(page.getByText('知りたい作業へ、まっすぐ。')).toHaveCount(0);

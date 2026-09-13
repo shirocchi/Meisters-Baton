@@ -17,6 +17,13 @@ async function checkAccessible(page: Page) {
   );
 }
 
+// Tests use synthetic archives; never load a developer's private textbook sources.
+test.beforeEach(async ({ page }) => {
+  await page.route('**/__textbook/sources', (route) =>
+    route.fulfill({ json: { version: 1, stages: {} } }),
+  );
+});
+
 test('mobile: a new expert answer becomes reviewed searchable knowledge and survives restart', async ({
   page,
 }) => {
@@ -202,7 +209,8 @@ test('the propeller Wiki package is imported locally into the new page tree', as
   await writeFile(packagePath, JSON.stringify(backup), 'utf8');
 
   await page.goto('/#library');
-  await page.getByRole('link', { name: '記録から作ったWiki' }).click();
+  await page.getByRole('button', { name: '目次', exact: true }).click();
+  await page.getByRole('dialog').getByRole('link', { name: '記録から作ったWiki' }).click();
   await expect(page.getByText('取込待ち', { exact: true })).toBeVisible();
   await page.getByLabel('Wiki下書きJSONを選択').setInputFiles(packagePath);
   await expect(page.getByRole('status')).toContainText(

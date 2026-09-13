@@ -40,6 +40,9 @@ import { downloadFile } from '../lib/media';
 import { api } from '../lib/api';
 import { PropellerWikiPage } from './PropellerWiki';
 import { useWiki } from '../wikiState';
+const TextbookPage = lazy(() =>
+  import('./BookReader').then((module) => ({ default: module.TextbookPage })),
+);
 const WikiAtlasPage = lazy(() =>
   import('./WikiAtlas').then((module) => ({ default: module.WikiAtlasPage })),
 );
@@ -76,6 +79,12 @@ export function LibraryPage() {
       ['finish', /塗装|仕上げ|ペラ端/],
       ['skin', /外皮|バギング|真空|積層/],
     ].find(([, terms]) => (terms as RegExp).test(linkedPage.title));
+  if (path === '#library' || path === '#library/' || path.startsWith('#library/textbook'))
+    return (
+      <Suspense fallback={<p role="status">教科書を読み込んでいます…</p>}>
+        <TextbookPage />
+      </Suspense>
+    );
   if (
     wiki.archive?.atlas &&
     (path === '#library' || path === '#library/' || atlasStage || linkedPage)

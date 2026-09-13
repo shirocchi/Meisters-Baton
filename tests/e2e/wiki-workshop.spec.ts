@@ -60,7 +60,7 @@ test('monitor stays minimized across source pages, guides, history and reload', 
   page,
 }) => {
   await connect(page);
-  await page.goto('/#library');
+  await page.goto('/#library/wiki/home');
   await page.getByLabel('モニターを最小化', { exact: true }).click();
   await page.locator('.gw-markdown').getByRole('link', { name: '外皮の原文' }).click();
   await expect(page.getByLabel('モニターを展開', { exact: true })).toBeVisible();
@@ -175,7 +175,7 @@ test.describe('editable workshop Wiki', () => {
     await expect
       .poll(() => db.edits[0]?.events[0]?.recording.title, { timeout: 15000 })
       .toBe('外皮の真空引き 続きの記録');
-    await page.goto('/#library');
+    await page.goto('/#library/wiki/home');
     await expect(page.locator('.ww-pending-row')).toContainText('失敗する記録');
   });
   test('media browsing and mobile editing keep controls visible', async ({ page }) => {

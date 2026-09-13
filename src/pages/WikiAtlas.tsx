@@ -191,6 +191,10 @@ export function WikiAtlasPage({ stageId, pageId }: { stageId: string; pageId?: s
   return (
     <div className="wiki-atlas">
       <PageTitle title="技術Wiki">
+        <a className="button" href="#library">
+          <BookOpen size={17} />
+          教科書に戻る
+        </a>
         <button className="button" onClick={() => setModal('search')}>
           <Search size={17} />
           Wikiを検索

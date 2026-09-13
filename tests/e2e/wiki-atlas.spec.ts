@@ -184,6 +184,13 @@ async function readSection(page: Page, title: string) {
   }, title);
 }
 test.use({ launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } });
+// Tests use synthetic archives; never load a developer's private textbook sources.
+test.beforeEach(async ({ page }) => {
+  await page.route('**/__textbook/sources', (route) =>
+    route.fulfill({ json: { version: 1, stages: {} } }),
+  );
+});
+
 test.describe('production Wiki atlas', () => {
   test.skip(!process.env.BATON_TEST_SUPABASE, 'Requires Supabase fixtures');
 
@@ -193,7 +200,7 @@ test.describe('production Wiki atlas', () => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await setup(page);
-    await page.goto('/#library');
+    await page.goto('/#library/atlas/overview');
     await expect(page.locator('.atlas-copy h2').first()).toHaveText('ウェブ組み立て');
     await expect(page.locator('.atlas-model canvas')).toBeVisible();
     expect(
@@ -226,7 +233,7 @@ test.describe('production Wiki atlas', () => {
     await expect(page.locator('.atlas-visual img')).toBeVisible();
     await page.getByRole('link', { name: 'これまでのWiki' }).click();
     await expect(page).toHaveURL(/#library\/wiki\/home$/);
-    await page.goto('/#library');
+    await page.goto('/#library/atlas/overview');
     await page.getByRole('button', { name: 'Wikiを検索' }).click();
     await page.getByLabel('Wiki全文検索').fill('非公開の検証本文4819');
     await page.locator('.atlas-results a').click();
@@ -237,7 +244,7 @@ test.describe('production Wiki atlas', () => {
     page,
   }) => {
     const edits = await setup(page);
-    await page.goto('/#library');
+    await page.goto('/#library/atlas/overview');
     await page.getByRole('button', { name: '本文を編集', exact: true }).click();
     await page.getByLabel('Wikiの本文').fill(overview.body + '\n\n次の代へ残す判断。');
     await page.getByRole('button', { name: '変更を保存' }).click();
@@ -252,6 +259,12 @@ test.describe('production Wiki atlas', () => {
       .poll(() => edits.find((e) => e.page_id === overview.id)?.events.length, { timeout: 15000 })
       .toBe(1);
     await page.goto('/#library');
+    await page.getByRole('button', { name: /この章の付箋/ }).click();
+    await expect(page.getByRole('dialog').locator('.book-note')).toContainText('ウェブ組み立て');
+    await page.getByRole('dialog').locator('.book-note').click();
+    await expect(page.getByRole('dialog')).toContainText('ウェブの当たり位置を合わせた。');
+    await page.getByRole('button', { name: '閉じる', exact: true }).click();
+    await page.goto('/#library/atlas/overview');
     await expect(page.locator('.atlas-copy')).toContainText('ウェブの当たり位置を合わせた。');
     await expect(page.locator('.atlas-copy')).toContainText('次の代へ残す判断。');
     await page.getByRole('button', { name: '元の記録と映像を確認' }).click();
@@ -267,7 +280,7 @@ test.describe('production Wiki atlas', () => {
       (route) => (failed ? route.fulfill({ json: [] }) : route.fallback()),
     );
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/#library');
+    await page.goto('/#library/atlas/overview');
     await expect(page.locator('.atlas-visual [role="alert"]')).toBeVisible();
     await expect(page.locator('.atlas-copy')).toContainText('既存の作業手順');
     failed = false;
@@ -361,7 +374,7 @@ test.describe('production Wiki atlas', () => {
     }) => {
       await page.setViewportSize({ width, height: 768 });
       await setup(page);
-      await page.goto('/#library');
+      await page.goto('/#library/atlas/overview');
       await expect(page.locator('.atlas-model canvas')).toBeVisible();
       const left = page.getByRole('complementary', { name: '工程を目で見る' });
       const right = page.getByRole('article', { name: 'Wiki本文' });
@@ -436,7 +449,7 @@ test.describe('production Wiki atlas', () => {
       await expect(left.getByRole('slider')).toHaveValue('2');
       expect((await left.boundingBox())!.y).toBeCloseTo(pinnedLeft.y, 0);
       await page.goBack();
-      await expect(page).toHaveURL(/#library$/);
+      await expect(page).toHaveURL(/#library\/atlas\/overview$/);
       await expect(right.locator('h2').first()).toHaveText(overview.title);
       await expect
         .poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - previousScroll))

@@ -11,6 +11,17 @@ export interface SpanSection {
 
 export const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 export const amount = (value: number, at: number) => clamp(value - at + 1);
+// Keep the reader on the selected action while its geometry moves from the
+// preceding completed state to this action's completed state. Chapter playback
+// retains the original continuous timeline.
+export const SINGLE_STEP_SPAN = 0.995;
+export function processPlaybackState(progress: number, max: number, playback: 'chapter' | 'step') {
+  const index = Math.min(max, Math.floor(progress + 0.0001));
+  if (playback === 'chapter')
+    return { index, sceneProgress: progress, assemblyProgress: undefined, phase: undefined };
+  const phase = clamp((progress - index) / SINGLE_STEP_SPAN);
+  return { index, sceneProgress: index, assemblyProgress: index - 1 + phase, phase };
+}
 export const path = (points: Point[], close = false) =>
   points.length
     ? `M${points.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join('L')}${close ? 'Z' : ''}`

@@ -9,7 +9,7 @@ import moldMarkup from './mold.html?raw';
 import './model.css';
 import { ProcessVisual } from './ProcessVisual';
 
-function ModelView({
+export function ModelView({
   data,
   kind,
   local,
@@ -52,6 +52,7 @@ export function AtlasModel({
   step = 0,
   onStepChange,
   paintAsset,
+  playback,
 }: {
   asset: WikiAsset;
   token: string;
@@ -61,6 +62,7 @@ export function AtlasModel({
   step?: number;
   onStepChange?: (step: number) => void;
   paintAsset?: WikiAsset;
+  playback?: 'chapter' | 'step';
 }) {
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ identity: string; data?: ModelData; error?: string }>();
@@ -123,6 +125,7 @@ export function AtlasModel({
       step={step}
       onStepChange={onStepChange}
       model={current.data}
+      playback={playback}
       paintImageUrl={paint?.identity === paintIdentity ? paint.url : undefined}
     />
   ) : (

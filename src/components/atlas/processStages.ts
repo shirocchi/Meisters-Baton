@@ -143,7 +143,8 @@ export const PROCESS_STEPS: Record<string, ProcessStep[]> = {
     {
       id: 'cure-flange',
       title: 'フランジ積層を仕上げる',
-      detail: '外皮とロービング、黒帯を一体化したフランジを作る。ウェブ材を立てるのは次の工程。',
+      detail:
+        '外皮とロービング、黒帯を一体化したフランジを作る。upper側は内部部材の組立へ、under側は相手との接触確認へ進む。',
     },
   ],
   web: [
@@ -235,7 +236,8 @@ export const PROCESS_STEPS: Record<string, ProcessStep[]> = {
     {
       id: 'mask',
       title: '図案に沿ってマスキングする',
-      detail: '塗装する部分と残す部分を分けてマスキングする。2026年7月15日の塗装データを参照する。',
+      detail:
+        '塗装する部分と残す部分を分けてマスキングする。7月15日の画像は当時の提案例として読む。実作業では、対象個体に使用することが確認された図案を用意する。',
     },
     {
       id: 'paint',

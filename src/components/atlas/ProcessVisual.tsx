@@ -10,6 +10,8 @@ import {
   modelSections,
   path,
   project,
+  processPlaybackState,
+  SINGLE_STEP_SPAN,
   ribbon,
   sectionCurve,
   type Point,
@@ -23,6 +25,8 @@ export { PROCESS_STEPS } from './processStages';
 
 interface SceneProps {
   progress: number;
+  assemblyProgress?: number;
+  motion?: number;
   model: AtlasModel;
   sections: SpanSection[];
   uid: string;
@@ -372,11 +376,22 @@ function DetailBox({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
-function MoldScene({ progress: p, model, sections, uid, labels, side }: SceneProps) {
+function MoldScene({
+  progress: p,
+  assemblyProgress: a = p,
+  motion = p % 1,
+  model,
+  sections,
+  uid,
+  labels,
+  side,
+}: SceneProps) {
   if (model.manufacturing)
     return (
       <CadMoldScene
         progress={p}
+        assemblyProgress={a}
+        motion={motion}
         model={model}
         sections={sections}
         uid={uid}
@@ -384,8 +399,8 @@ function MoldScene({ progress: p, model, sections, uid, labels, side }: ScenePro
         side={side}
       />
     );
-  const released = amount(p, 9),
-    female = amount(p, 10);
+  const released = amount(a, 9),
+    female = amount(a, 10);
   const lift = released * 78;
   const section = sections[10];
   const detailTop = model.profile[side].map(
@@ -401,7 +416,7 @@ function MoldScene({ progress: p, model, sections, uid, labels, side }: ScenePro
           side={side}
           height={95}
           fill={C.foam}
-          opacity={amount(p, 1)}
+          opacity={amount(a, 1)}
         />
         {sections
           .slice()
@@ -409,7 +424,7 @@ function MoldScene({ progress: p, model, sections, uid, labels, side }: ScenePro
           .map((s, i) => (
             <g key={i}>
               {p > 0 && (
-                <g opacity={amount(p, 1)}>
+                <g opacity={amount(a, 1)}>
                   <MoldPlate
                     section={{ ...s, span: s.span + 12 }}
                     model={model}
@@ -435,7 +450,7 @@ function MoldScene({ progress: p, model, sections, uid, labels, side }: ScenePro
           side={side}
           height={103}
           fill={p < 4 ? C.putty : '#d6ddd9'}
-          opacity={amount(p, 2)}
+          opacity={amount(a, 2)}
         />
         {p > 4 && (
           <MoldShell
@@ -444,7 +459,7 @@ function MoldScene({ progress: p, model, sections, uid, labels, side }: ScenePro
             side={side}
             height={108}
             fill="#e7ece7"
-            opacity={amount(p, 5)}
+            opacity={amount(a, 5)}
             lift={lift}
           />
         )}
@@ -455,15 +470,15 @@ function MoldScene({ progress: p, model, sections, uid, labels, side }: ScenePro
             side={side}
             height={113}
             fill={`url(#${uid}-carbon)`}
-            opacity={amount(p, 6)}
+            opacity={amount(a, 6)}
             lift={lift}
           />
         )}
-        {p >= 2 && p < 3 && <HandTool x={360} y={165} kind="brush" motion={p % 1} />}
-        {p >= 3 && p < 4 && <HandTool x={360} y={165} motion={p % 1} />}
-        {p >= 4 && p < 5 && <HandTool x={320} y={132} kind="spray" motion={p % 1} />}
-        {p >= 8 && p < 9 && <HandTool x={405} y={264} kind="grinder" motion={p % 1} />}
-        {p >= 9 && p < 10 && <HandTool x={262} y={215 - lift / 2} kind="bar" motion={p % 1} />}
+        {p >= 2 && p < 3 && <HandTool x={360} y={165} kind="brush" motion={motion} />}
+        {p >= 3 && p < 4 && <HandTool x={360} y={165} motion={motion} />}
+        {p >= 4 && p < 5 && <HandTool x={320} y={132} kind="spray" motion={motion} />}
+        {p >= 8 && p < 9 && <HandTool x={405} y={264} kind="grinder" motion={motion} />}
+        {p >= 9 && p < 10 && <HandTool x={262} y={215 - lift / 2} kind="bar" motion={motion} />}
         {p >= 7 && p < 8 && (
           <g transform="translate(610 68)">
             <circle r="32" fill="#fff" stroke="#52718d" strokeWidth="2" />
@@ -578,10 +593,18 @@ function MoldScene({ progress: p, model, sections, uid, labels, side }: ScenePro
   );
 }
 
-function CadMoldScene({ progress: p, model, uid, labels, side }: SceneProps) {
+function CadMoldScene({
+  progress: p,
+  assemblyProgress: a = p,
+  motion = p % 1,
+  model,
+  uid,
+  labels,
+  side,
+}: SceneProps) {
   const geometry = useMemo(() => cadMoldGeometry(model, side)!, [model, side]);
-  const released = amount(p, 9),
-    female = amount(p, 10);
+  const released = amount(a, 9),
+    female = amount(a, 10);
   const lift = released * 57;
   const representative = geometry.source[Math.floor(geometry.source.length / 2)];
   const xs = representative.outline.map(([x]) => x),
@@ -617,7 +640,7 @@ function CadMoldScene({ progress: p, model, uid, labels, side }: SceneProps) {
     <>
       <g opacity={1 - female}>
         <Table tall />
-        {shell(C.foam, amount(p, 1), 4)}
+        {shell(C.foam, amount(a, 1), 4)}
         {geometry.sections
           .slice()
           .reverse()
@@ -630,13 +653,13 @@ function CadMoldScene({ progress: p, model, uid, labels, side }: SceneProps) {
               opacity={p < 2 ? 0.88 : 0.35}
             />
           ))}
-        {shell(p < 4 ? C.putty : '#d8dfdb', amount(p, 2), -1)}
-        {p > 4 && shell('#e5ebe5', amount(p, 5), -4 - lift)}
-        {p > 5 && shell(`url(#${uid}-carbon)`, amount(p, 6), -8 - lift)}
-        {p >= 2 && p < 3 && <HandTool x={top[0]} y={top[1] - 10} kind="brush" motion={p % 1} />}
-        {p >= 3 && p < 4 && <HandTool x={top[0]} y={top[1] - 10} motion={p % 1} />}
+        {shell(p < 4 ? C.putty : '#d8dfdb', amount(a, 2), -1)}
+        {p > 4 && shell('#e5ebe5', amount(a, 5), -4 - lift)}
+        {p > 5 && shell(`url(#${uid}-carbon)`, amount(a, 6), -8 - lift)}
+        {p >= 2 && p < 3 && <HandTool x={top[0]} y={top[1] - 10} kind="brush" motion={motion} />}
+        {p >= 3 && p < 4 && <HandTool x={top[0]} y={top[1] - 10} motion={motion} />}
         {p >= 4 && p < 5 && (
-          <HandTool x={top[0] - 50} y={top[1] - 23} kind="spray" motion={p % 1} />
+          <HandTool x={top[0] - 50} y={top[1] - 23} kind="spray" motion={motion} />
         )}
         {p >= 7 && p < 8 && (
           <g transform="translate(655 58)">
@@ -648,10 +671,10 @@ function CadMoldScene({ progress: p, model, uid, labels, side }: SceneProps) {
           </g>
         )}
         {p >= 8 && p < 9 && (
-          <HandTool x={top[0] + 20} y={top[1] + 63} kind="grinder" motion={p % 1} />
+          <HandTool x={top[0] + 20} y={top[1] + 63} kind="grinder" motion={motion} />
         )}
         {p >= 9 && p < 10 && (
-          <HandTool x={top[0] - 85} y={top[1] + 55 - lift / 2} kind="bar" motion={p % 1} />
+          <HandTool x={top[0] - 85} y={top[1] + 55 - lift / 2} kind="bar" motion={motion} />
         )}
       </g>
       {female > 0 && (
@@ -755,11 +778,20 @@ function FemaleBase({
   );
 }
 
-function SkinScene({ progress: p, model, sections, uid, labels, side }: SceneProps) {
-  const peel = amount(p, 4),
-    breathe = amount(p, 5),
-    vacuum = amount(p, 6),
-    demold = amount(p, 7);
+function SkinScene({
+  progress: p,
+  assemblyProgress: a = p,
+  motion = p % 1,
+  model,
+  sections,
+  uid,
+  labels,
+  side,
+}: SceneProps) {
+  const peel = amount(a, 4),
+    breathe = amount(a, 5),
+    vacuum = amount(a, 6),
+    demold = amount(a, 7);
   const layers: [number, string, number][] = [
     [1, `url(#${uid}-carbon45)`, 38],
     [2, `url(#${uid}-wood)`, 44],
@@ -774,16 +806,17 @@ function SkinScene({ progress: p, model, sections, uid, labels, side }: ScenePro
       {layers.map(
         ([at, fill, height]) =>
           p > at - 1 && (
-            <Surface
-              key={at}
-              model={model}
-              sections={sections}
-              side={side}
-              inward
-              fill={fill}
-              height={height + (1 - amount(p, at)) * 80 + demold * 70}
-              opacity={amount(p, at)}
-            />
+            <g key={at} data-process-layer={PROCESS_STEPS.skin[at].id}>
+              <Surface
+                model={model}
+                sections={sections}
+                side={side}
+                inward
+                fill={fill}
+                height={height + (1 - amount(a, at)) * 80 + demold * 70}
+                opacity={amount(a, at)}
+              />
+            </g>
           ),
       )}
       {p > 3 && (
@@ -844,7 +877,7 @@ function SkinScene({ progress: p, model, sections, uid, labels, side }: ScenePro
             strokeWidth="12"
             opacity=".7"
           />
-          <HandTool x={105} y={37} motion={p} />
+          <HandTool x={105} y={37} motion={motion} />
           <Tag x={3} y={-13}>
             袋の中でエポキシ樹脂を含浸
           </Tag>
@@ -877,35 +910,42 @@ function SkinScene({ progress: p, model, sections, uid, labels, side }: ScenePro
         {layers.map(
           ([at, , height]) =>
             p >= at && (
-              <Line
-                key={at}
-                points={layerLine.map(([x, y]) => [x, y - (height - 38) * 1.5 - demold * 16])}
-                color={at === 2 ? C.balsa : C.carbon}
-                width={at === 2 ? 8 : 5}
-              />
+              <g key={at} opacity={amount(a, at)}>
+                <Line
+                  points={layerLine.map(([x, y]) => [x, y - (height - 38) * 1.5 - demold * 16])}
+                  color={at === 2 ? C.balsa : C.carbon}
+                  width={at === 2 ? 8 : 5}
+                />
+              </g>
             ),
         )}
         {p >= 4 && (
-          <Line
-            points={layerLine.map(([x, y]) => [x, y - 27 - demold * 50])}
-            color="#be9da0"
-            width={4}
-            dash="5 3"
-          />
+          <g opacity={amount(a, 4)}>
+            <Line
+              points={layerLine.map(([x, y]) => [x, y - 27 - demold * 50])}
+              color="#be9da0"
+              width={4}
+              dash="5 3"
+            />
+          </g>
         )}
         {p >= 5 && (
-          <Line
-            points={layerLine.map(([x, y]) => [x, y - 33 - demold * 65])}
-            color="#d9d5ce"
-            width={7}
-          />
+          <g opacity={amount(a, 5)}>
+            <Line
+              points={layerLine.map(([x, y]) => [x, y - 33 - demold * 65])}
+              color="#d9d5ce"
+              width={7}
+            />
+          </g>
         )}
         {p >= 6 && (
-          <Line
-            points={layerLine.map(([x, y]) => [x, y - 41 - (1 - vacuum) * 20 - demold * 75])}
-            color="#80a5c8"
-            width={2}
-          />
+          <g opacity={amount(a, 6)}>
+            <Line
+              points={layerLine.map(([x, y]) => [x, y - 41 - (1 - vacuum) * 20 - demold * 75])}
+              color="#80a5c8"
+              width={2}
+            />
+          </g>
         )}
         <text x="590" y="418" fontSize="16" fill="#425b73">
           副資材
@@ -955,10 +995,19 @@ function EmptySkin({
   );
 }
 
-function FlangeScene({ progress: p, model, sections, uid, labels, side }: SceneProps) {
+function FlangeScene({
+  progress: p,
+  assemblyProgress: a = p,
+  motion = p % 1,
+  model,
+  sections,
+  uid,
+  labels,
+  side,
+}: SceneProps) {
   const count = side === 'upper' ? 6 : 4;
-  const roving = amount(p, 1),
-    belt = amount(p, 2);
+  const roving = amount(a, 1),
+    belt = amount(a, 2);
   const selected = sections.filter((s) => s.span <= 700 * Math.max(0.01, roving));
   const centerline = sections.map((s) => project([s.span, 0, 51]));
   return (
@@ -988,7 +1037,7 @@ function FlangeScene({ progress: p, model, sections, uid, labels, side }: SceneP
           opacity={belt}
         />
       )}
-      {p < 1 && <HandTool x={318} y={217} kind="brush" motion={p} />}
+      {p < 1 && <HandTool x={318} y={217} kind="brush" motion={motion} />}
       {labels && (
         <>
           <Tag x={40} y={47} to={project([350, 0, 59])}>
@@ -1202,20 +1251,23 @@ function JigDetail({
   model,
   kind,
   p,
+  assemblyProgress: a = p,
   uid,
 }: {
   model: AtlasModel;
   kind: 'web' | 'join';
   p: number;
+  assemblyProgress?: number;
   uid: string;
 }) {
-  if (model.manufacturing) return <CadJigDetail model={model} kind={kind} p={p} />;
+  if (model.manufacturing)
+    return <CadJigDetail model={model} kind={kind} p={p} assemblyProgress={a} />;
   const upper = model.profile.upper.map(([x, y]) => [170 + x * 380, 438 + y * 360] as Point);
   const under = model.profile.under.map(([x, y]) => [170 + x * 380, 438 + y * 360] as Point);
   const isJoin = kind === 'join';
-  const fitted = amount(p, isJoin ? 4 : 3),
-    web = isJoin ? 1 : amount(p, 4),
-    close = isJoin ? amount(p, 3) : 0;
+  const fitted = amount(a, isJoin ? 4 : 3),
+    web = isJoin ? 1 : amount(a, 4),
+    close = isJoin ? amount(a, 3) : 0;
   const upperY = 478,
     webX = 280;
   const topY = 400 - (1 - fitted) * 17;
@@ -1311,7 +1363,17 @@ function JigDetail({
   );
 }
 
-function CadJigDetail({ model, kind, p }: { model: AtlasModel; kind: 'web' | 'join'; p: number }) {
+function CadJigDetail({
+  model,
+  kind,
+  p,
+  assemblyProgress: a = p,
+}: {
+  model: AtlasModel;
+  kind: 'web' | 'join';
+  p: number;
+  assemblyProgress?: number;
+}) {
   const data = model.manufacturing!.jigs;
   const isJoin = kind === 'join';
   const support = data.join.supportPaths;
@@ -1326,14 +1388,14 @@ function CadJigDetail({ model, kind, p }: { model: AtlasModel; kind: 'web' | 'jo
     183 + (x - minX) * scale,
     488 - (y - minY) * scale - offset,
   ];
-  const fit = amount(p, isJoin ? 4 : 3);
+  const fit = amount(a, isJoin ? 4 : 3);
   const upperContact = data.join.upperContact;
   const underContact = data.join.underContact;
   const webStart =
     upperContact && data.web.slot ? lineContact(data.web.slot, upperContact) : undefined;
   const webEnd =
     underContact && data.web.slot ? lineContact(data.web.slot, underContact) : undefined;
-  const insert = isJoin ? 1 : amount(p, 4);
+  const insert = isJoin ? 1 : amount(a, 4);
   return (
     <DetailBox
       title={isJoin ? 'CAD実断面：共通受けと貼り合わせ治具' : 'CAD実断面：ウェブ立て治具の斜めの溝'}
@@ -1388,7 +1450,7 @@ function CadJigDetail({ model, kind, p }: { model: AtlasModel; kind: 'web' | 'jo
       )}
       {isJoin && underContact && p > 2 && (
         <Line
-          points={underContact.map((point) => transform(point, (1 - amount(p, 3)) * 22))}
+          points={underContact.map((point) => transform(point, (1 - amount(a, 3)) * 22))}
           color={C.carbon}
           width={3.5}
         />
@@ -1424,7 +1486,15 @@ function CadJigDetail({ model, kind, p }: { model: AtlasModel; kind: 'web' | 'jo
   );
 }
 
-function WebScene({ progress: p, model, sections, uid, labels }: SceneProps) {
+function WebScene({
+  progress: p,
+  assemblyProgress: a = p,
+  motion = p % 1,
+  model,
+  sections,
+  uid,
+  labels,
+}: SceneProps) {
   return (
     <>
       <Table />
@@ -1436,7 +1506,7 @@ function WebScene({ progress: p, model, sections, uid, labels }: SceneProps) {
         uid={uid}
         spar={p >= 1}
         web={p > 3}
-        lift={(1 - amount(p, 4)) * 85}
+        lift={(1 - amount(a, 4)) * 85}
       />
       {p > 2 && (
         <FixtureBank
@@ -1444,8 +1514,8 @@ function WebScene({ progress: p, model, sections, uid, labels }: SceneProps) {
           model={model}
           top
           kind="web"
-          lift={(1 - amount(p, 3)) * 100}
-          opacity={p >= 5 ? 0.6 : amount(p, 3) * 0.85}
+          lift={(1 - amount(a, 3)) * 100}
+          opacity={p >= 5 ? 0.6 : amount(a, 3) * 0.85}
         />
       )}
       {p >= 2 && p < 3 && (
@@ -1476,14 +1546,22 @@ function WebScene({ progress: p, model, sections, uid, labels }: SceneProps) {
           </Tag>
         </>
       )}
-      <JigDetail model={model} kind="web" p={p} uid={uid} />
+      <JigDetail model={model} kind="web" p={p} assemblyProgress={a} uid={uid} />
     </>
   );
 }
 
-function JoinScene({ progress: p, model, sections, uid, labels }: SceneProps) {
-  const under = amount(p, 3),
-    clampFit = amount(p, 4);
+function JoinScene({
+  progress: p,
+  assemblyProgress: a = p,
+  motion = p % 1,
+  model,
+  sections,
+  uid,
+  labels,
+}: SceneProps) {
+  const under = amount(a, 3),
+    clampFit = amount(a, 4);
   return (
     <>
       <Table />
@@ -1545,7 +1623,7 @@ function JoinScene({ progress: p, model, sections, uid, labels }: SceneProps) {
           </Tag>
         </>
       )}
-      <JigDetail model={model} kind="join" p={p} uid={uid} />
+      <JigDetail model={model} kind="join" p={p} assemblyProgress={a} uid={uid} />
     </>
   );
 }
@@ -1572,15 +1650,18 @@ function PaintReference({
 
 function FinishScene({
   progress: p,
+  assemblyProgress,
+  motion = p % 1,
   model,
   sections,
   uid,
   labels,
   paintImageUrl,
 }: SceneProps & { paintImageUrl?: string }) {
+  const a = assemblyProgress ?? p;
   const finishFill = p >= 2 ? '#f7f7f3' : `url(#${uid}-carbon45)`;
   const last = sections.at(-1)!;
-  const tipLift = (1 - amount(p, 0.8)) * 35;
+  const tipLift = (1 - amount(a, assemblyProgress === undefined ? 0.8 : 0)) * 35;
   const outline = [
     ...sectionCurve(sections[0], model.profile, 'upper', 63).map(project),
     ...sections.slice(1).map((s) => project(sectionCurve(s, model.profile, 'upper', 63).at(-1)!)),
@@ -1618,10 +1699,10 @@ function FinishScene({
         color={p < 2 ? C.putty : '#cbd2d1'}
         width={5}
       />
-      {p >= 1 && p < 2 && <HandTool x={659} y={145} motion={p % 1} />}
-      {p >= 2 && p < 3 && <HandTool x={390} y={165} kind="spray" motion={p % 1} />}
+      {p >= 1 && p < 2 && <HandTool x={659} y={145} motion={motion} />}
+      {p >= 2 && p < 3 && <HandTool x={390} y={165} kind="spray" motion={motion} />}
       {p >= 3 && p < 5 && (
-        <g opacity={1 - amount(p, 5)}>
+        <g opacity={1 - amount(a, 5)}>
           {[1, 3, 6, 10, 14, 17].map((index) => {
             const s = sections[index];
             return (
@@ -1648,13 +1729,13 @@ function FinishScene({
             </clipPath>
           </defs>
           <g clipPath={`url(#${uid}-paint-surface)`}>
-            <g transform="translate(124 233) rotate(-11.5)" opacity={amount(p, 4)}>
+            <g transform="translate(124 233) rotate(-11.5)" opacity={amount(a, 4)}>
               <PaintReference url={paintImageUrl} width={530} height={62} />
             </g>
           </g>
         </>
       )}
-      {p >= 4 && p < 5 && <HandTool x={343} y={144} kind="spray" motion={p % 1} />}
+      {p >= 4 && p < 5 && <HandTool x={343} y={144} kind="spray" motion={motion} />}
       {labels && (
         <>
           <Tag x={38} y={43} to={project([last.span, (last.left + last.right) / 2, 63])}>
@@ -1721,6 +1802,7 @@ export interface ProcessVisualProps {
   onStepChange?: (step: number) => void;
   model?: AtlasModel;
   paintImageUrl?: string;
+  playback?: 'chapter' | 'step';
 }
 
 export function ProcessVisual({
@@ -1729,10 +1811,12 @@ export function ProcessVisual({
   onStepChange,
   model,
   paintImageUrl,
+  playback = 'chapter',
 }: ProcessVisualProps) {
   const steps = PROCESS_STEPS[stage] ?? PROCESS_STEPS.overview;
   const max = steps.length - 1;
-  const [progress, setProgress] = useState(clamp(step, 0, max));
+  const maxProgress = playback === 'step' ? max + SINGLE_STEP_SPAN : max;
+  const [progress, setProgress] = useState(clamp(step, 0, maxProgress));
   const [playing, setPlaying] = useState(false);
   const [labels, setLabels] = useState(true);
   const [sectionOnly, setSectionOnly] = useState(false);
@@ -1741,6 +1825,7 @@ export function ProcessVisual({
   const notified = useRef<number | null>(null);
   const changeRef = useRef(onStepChange);
   changeRef.current = onStepChange;
+  const playEnd = useRef(max);
   const position = useRef(progress);
   position.current = progress;
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -1756,7 +1841,7 @@ export function ProcessVisual({
     return () => query.removeEventListener('change', changed);
   }, []);
   useEffect(() => {
-    setProgress(clamp(step, 0, max));
+    setProgress(clamp(step, 0, maxProgress));
     setPlaying(false);
     notified.current = null;
     setSide('upper');
@@ -1764,16 +1849,19 @@ export function ProcessVisual({
   }, [stage]);
   useEffect(() => {
     if (notified.current !== null && Math.abs(step - notified.current) < 0.01) return;
-    setProgress(clamp(step, 0, max));
+    setProgress(clamp(step, 0, maxProgress));
     setPlaying(false);
-  }, [step, max]);
+  }, [step, maxProgress]);
   useEffect(() => {
     if (!playing) return;
     let frame = 0,
       previous = performance.now();
     notified.current = Math.floor(position.current + 0.0001);
     const tick = (now: number) => {
-      const next = Math.min(max, position.current + clamp(now - previous, 0, 80) / 1900);
+      const next = Math.min(
+        playEnd.current,
+        position.current + clamp(now - previous, 0, 80) / 1900,
+      );
       previous = now;
       position.current = next;
       setProgress(next);
@@ -1782,23 +1870,37 @@ export function ProcessVisual({
         notified.current = index;
         changeRef.current?.(index);
       }
-      if (next < max) frame = requestAnimationFrame(tick);
+      if (next < playEnd.current) frame = requestAnimationFrame(tick);
       else setPlaying(false);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [playing, max]);
   const select = (value: number) => {
-    const next = clamp(value, 0, max);
+    const next = clamp(value, 0, maxProgress);
     setPlaying(false);
     setProgress(next);
-    notified.current = next;
-    onStepChange?.(next);
+    const selected = playback === 'step' ? Math.floor(next + 0.0001) : next;
+    notified.current = selected;
+    onStepChange?.(selected);
   };
-  const index = Math.min(max, Math.floor(progress + 0.0001));
+  const { index, sceneProgress, assemblyProgress, phase } = processPlaybackState(
+    progress,
+    max,
+    playback,
+  );
   const current = steps[index];
   const scene: SceneProps | undefined = model
-    ? { progress, model, sections, uid, labels, side }
+    ? {
+        progress: sceneProgress,
+        assemblyProgress,
+        motion: phase,
+        model,
+        sections,
+        uid,
+        labels,
+        side,
+      }
     : undefined;
   return (
     <section
@@ -1806,6 +1908,7 @@ export function ProcessVisual({
       aria-label={`${stage === 'mold' ? '型作り' : stage === 'skin' ? '外皮積層' : stage === 'flange' ? 'フランジ積層' : stage === 'web' ? '内部部材' : stage === 'join' ? '貼り合わせ' : '仕上げ'}の工程図`}
       data-process-stage={stage}
       data-process-step={index}
+      data-process-phase={phase}
     >
       <div className="process-toolbar">
         {['mold', 'skin', 'flange'].includes(stage) && (
@@ -1922,13 +2025,23 @@ export function ProcessVisual({
       <input
         type="range"
         className="process-seek"
-        aria-label="工程図のシークバー"
-        aria-valuetext={`${index + 1}/${steps.length} ${current.title}`}
+        aria-label={playback === 'step' ? 'この動作の進み具合' : '工程図のシークバー'}
+        aria-valuetext={
+          playback === 'step'
+            ? `${current.title} ${Math.round((phase ?? 0) * 100)}%`
+            : `${index + 1}/${steps.length} ${current.title}`
+        }
         min={0}
-        max={max}
+        max={playback === 'step' ? 1 : max}
         step={0.01}
-        value={progress}
-        onChange={(event) => select(Number(event.target.value))}
+        value={playback === 'step' ? phase : progress}
+        onChange={(event) =>
+          select(
+            playback === 'step'
+              ? index + Number(event.target.value) * SINGLE_STEP_SPAN
+              : Number(event.target.value),
+          )
+        }
       />
       <div className="process-controls">
         <button
@@ -1944,21 +2057,48 @@ export function ProcessVisual({
           className="process-play"
           onClick={() => {
             if (reducedMotion) {
-              select(progress >= max ? 0 : Math.min(max, index + 1));
+              select(
+                playback === 'step'
+                  ? index + SINGLE_STEP_SPAN
+                  : progress >= max
+                    ? 0
+                    : Math.min(max, index + 1),
+              );
               return;
             }
-            if (progress >= max) {
+            if (playback === 'step' && !playing) {
+              setProgress(index);
+              position.current = index;
+              playEnd.current = index + SINGLE_STEP_SPAN;
+            } else playEnd.current = max;
+            if (playback === 'chapter' && progress >= max) {
               setProgress(0);
               position.current = 0;
             }
             setPlaying((value) => !value);
           }}
           aria-label={
-            playing ? '工程の再生を一時停止' : reducedMotion ? '次の手順を表示' : '工程を再生'
+            playing
+              ? '工程の再生を一時停止'
+              : playback === 'step'
+                ? reducedMotion
+                  ? 'この動作の完了状態を表示'
+                  : 'この動作を再生'
+                : reducedMotion
+                  ? '次の手順を表示'
+                  : '工程を再生'
           }
         >
           {playing ? <Pause size={17} /> : <Play size={17} />}
-          {playing ? '一時停止' : reducedMotion ? '次の手順' : '工程を再生'}
+          {playing
+            ? '一時停止'
+            : playback === 'step'
+              ? reducedMotion
+                ? '完了状態'
+                : 'この動作を再生'
+              : reducedMotion
+                ? '次の手順'
+                : '工程を再生'}
         </button>
         <button
           type="button"

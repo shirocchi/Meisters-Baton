@@ -13,7 +13,7 @@ test('the main wiki asks for login and makes no private data request anonymously
     reads++;
     return route.fulfill({ status: 401 });
   });
-  await page.goto('/#library');
+  await page.goto('/#library/wiki/home');
   await expect(page.getByRole('button', { name: 'ログインして技術Wikiを読む' })).toBeVisible();
   expect(reads).toBe(0);
 });
@@ -25,7 +25,7 @@ test.describe('authenticated imported wiki', () => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await connect(page);
-    await page.goto('/#library');
+    await page.goto('/#library/wiki/home');
     await expect(page.locator('.gw-markdown h1')).toHaveText('カーボンモノコックマニュアル');
     const accessibility = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
@@ -52,14 +52,14 @@ test.describe('authenticated imported wiki', () => {
     );
     await page.goto('/#settings');
     await page.getByRole('button', { name: '接続を終了', exact: true }).click();
-    await page.goto('/#library');
+    await page.goto('/#library/wiki/home');
     await expect(page.locator('.gw-markdown')).toHaveCount(0);
     expect(errors).toEqual([]);
   });
   test('mobile page tree and missing page recovery stay inside the tab', async ({ page }) => {
     await connect(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/#library');
+    await page.goto('/#library/wiki/home');
     await page.getByRole('button', { name: 'ページツリー', exact: true }).click();
     await page.getByLabel('Wiki全文検索').fill('真空');
     await page.locator('.gw-results a').click();
@@ -89,7 +89,7 @@ test.describe('authenticated imported wiki', () => {
       });
     });
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto('/#library');
+    await page.goto('/#library/wiki/home');
     await expect(page.locator('.gw-markdown h1')).toBeVisible();
     await page.getByLabel('モニターを最小化', { exact: true }).click();
     await page.screenshot({ path: '.verification/growi-desktop.png' });
