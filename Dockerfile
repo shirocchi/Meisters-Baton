@@ -10,7 +10,7 @@ COPY tsconfig.json vite.config.ts capacitor.config.ts index.html ./
 COPY src ./src
 COPY server ./server
 COPY public ./public
-COPY scripts/build-sw.mjs ./scripts/build-sw.mjs
+COPY scripts/build-sw.mjs scripts/textbook-local-plugin.ts ./scripts/
 RUN npm run build
 
 FROM node:22.23.2-bookworm-slim AS runtime
