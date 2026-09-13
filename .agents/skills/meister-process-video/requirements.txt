@@ -1,0 +1,3 @@
+# Dependencies for scripts/inspect_video.py only; no 3D renderer is included.
+av
+Pillow

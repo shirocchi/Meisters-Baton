@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Meister 製作3D解説'
+  short_description: '製作動画とアプリ内・取込済みWikiから、根拠に沿った無音3D解説を作る'
+  default_prompt: '$meister-process-video を使い、添付動画と以下のコメントからアプリ内Wikiと取り込み済みMeister Wikiを参照し、HTML/CSSと3Dで先輩の作り方を伝える無音の解説動画を最終MP4まで制作してください。'

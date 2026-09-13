@@ -23,7 +23,9 @@ import { Badge, Modal, PageTitle } from '../components/ui';
 import { useBaton } from '../state';
 import { createDemoData, createEmptyData, parseTeamData } from '../domain';
 import type { AuthSession, AuthUser, SyncEnvelope, TeamData } from '../domain/types';
+import type { WikiConnection } from '../domain/processVideo';
 import { api, assertAuthSession } from '../lib/api';
+import { checkLaptopConnection, LAPTOP_API_URL } from '../lib/laptopConnection';
 import {
   createTeamInvite,
   deleteSupabaseAccount,
@@ -200,6 +202,10 @@ export function SettingsPage() {
     aiConfigured: boolean;
     model: string;
   } | null>(null);
+  const [wikiConnection, setWikiConnection] = useState<WikiConnection | null>(null);
+  useEffect(() => {
+    setWikiConnection(null);
+  }, [auth?.user.id, auth?.user.teamId, settings.apiBaseUrl]);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [syncNote, setSyncNote] = useState('');
@@ -840,6 +846,32 @@ export function SettingsPage() {
             </label>
             <details className="settings-details">
               <summary>AIサーバーの接続先を設定する</summary>
+              {!Capacitor.isNativePlatform() && (
+                <>
+                  <p>
+                    このサイトを開いているPCのCodexを使えます。PC側の接続口を起動し、CodexへChatGPTでログインしてください。生成中はPCとインターネット接続が必要です。
+                  </p>
+                  <button
+                    className="button primary"
+                    disabled={!!busy}
+                    onClick={() =>
+                      void run('このPCのCodexを確認中', async () => {
+                        const result = await checkLaptopConnection();
+                        assertCurrentOperation();
+                        await configure({ apiBaseUrl: LAPTOP_API_URL });
+                        setBaseUrl(LAPTOP_API_URL);
+                        setHealth(result);
+                        toast('このPCのCodexに接続しました');
+                      })
+                    }
+                  >
+                    このPCのCodexに接続
+                  </button>
+                  <p className="privacy-hint">
+                    ブラウザーにローカルネットワークへの接続許可が表示された場合は、このPCの接続口を使うために許可してください。APIキーの入力は不要です。
+                  </p>
+                </>
+              )}
               <p>
                 AI解析を使う場合だけサーバーのアドレスを入力します。アカウントとWiki共有は、ビルド時に設定されたSupabaseへ直接接続します。
               </p>
@@ -896,6 +928,40 @@ export function SettingsPage() {
                   <Badge tone={health.aiConfigured ? 'green' : 'amber'}>
                     {health.aiConfigured ? 'AI利用可能' : 'AI未設定・手動で利用できます'}
                   </Badge>
+                </p>
+              )}
+              <button
+                className="button"
+                disabled={!!busy || !auth || !settings.apiBaseUrl}
+                onClick={() =>
+                  void run('Wiki閲覧権限を確認中', async () => {
+                    if (!auth) return;
+                    setWikiConnection(null);
+                    const result = await api<WikiConnection>(settings, '/api/process-video', {
+                      method: 'POST',
+                      body: { action: 'check', query: '外皮', teamId: auth.user.teamId },
+                      sessionToken: auth.token,
+                      sessionTeamId: auth.user.teamId,
+                      timeout: 60000,
+                    });
+                    assertCurrentOperation();
+                    assertAuthSession(auth.token, settings, auth.user.teamId);
+                    setWikiConnection(result);
+                  })
+                }
+              >
+                Wiki閲覧権限を確認
+              </button>
+              {!auth && <small>アプリにログインすると、Wikiも読めるか確認できます。</small>}
+              {wikiConnection && (
+                <p role="status">
+                  取込Wiki {wikiConnection.importedPages}件・編集{' '}
+                  {wikiConnection.editedPages ?? '未確認'}件・作業記事{' '}
+                  {wikiConnection.appArticles ?? '未確認'}件を参照できます。 添付:{' '}
+                  {wikiConnection.attachment.status === 'verified'
+                    ? '取得・一致確認済み'
+                    : '未確認'}
+                  。
                 </p>
               )}
               <small>

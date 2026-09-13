@@ -208,6 +208,8 @@ export function WikiProvider({ children }: { children: ReactNode }) {
   const [cycle, setCycle] = useState(0);
   useEffect(() => {
     if (!auth || !archive || current?.editError || !online) return;
+    // Local connection verification must not publish its test recordings into team Wiki.
+    if (import.meta.env.VITE_BATON_VERIFICATION === 'true') return;
     let cancelled = false;
     const timer = setTimeout(() => {
       void (async () => {

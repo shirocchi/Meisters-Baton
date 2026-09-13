@@ -34,6 +34,7 @@ import {
 } from '../lib/storage';
 import { inspectVideo } from '../lib/media';
 import { api } from '../lib/api';
+import { ProcessVideo } from '../components/ProcessVideo';
 const categories = ['プロペラ', '翼', '機体・フレーム', '電装・制御', '工具・治具', 'その他'];
 export function CapturePage() {
   const { data, settings, auth, mutate, navigate, toast } = useBaton();
@@ -333,7 +334,9 @@ export function CapturePage() {
                 {auth && (
                   <>
                     <br />
-                    技術Wikiを使える工房では、内容を該当工程へ自動反映し、50MB以下の動画も工房内で共有します。
+                    {import.meta.env.VITE_BATON_VERIFICATION === 'true'
+                      ? '接続検証モードでは、記録を端末内に保存します。Wikiへの自動反映は停止しています。'
+                      : '技術Wikiを使える工房では、内容を該当工程へ自動反映し、50MB以下の動画も工房内で共有します。'}
                   </>
                 )}
               </p>
@@ -733,6 +736,7 @@ export function InterviewPage({ id }: { id: string }) {
             )}
             <RecordingManagement record={record} />
           </details>
+          <ProcessVideo record={record} />
         </section>
         <section className="interview-panel">
           {!analysis ? (

@@ -13,5 +13,13 @@
     "noEmit": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "server", "tests", "vite.config.ts", "capacitor.config.ts"]
+  "include": [
+    "src",
+    "server",
+    "tests",
+    "scripts/process-video-context.ts",
+    "scripts/export-process-video-context.ts",
+    "vite.config.ts",
+    "capacitor.config.ts"
+  ]
 }
