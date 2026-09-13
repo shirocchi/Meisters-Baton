@@ -31,6 +31,8 @@ import { BookSearch } from '../components/book/BookSearch';
 import type { AircraftCamera } from '../components/book/aircraftRenderer';
 import { teachingModel } from '../components/book/teachingModel';
 import { useBookSources } from '../components/book/useBookSources';
+import { DiaryNotes } from '../components/book/DiaryNotes';
+import { diaryNotesFor } from '../domain/bookDiaryNotes';
 import { LESSONS } from '../domain/textbook';
 import { BOOK_GLOSSARY, type BookTerm } from '../domain/bookGlossary';
 import { CHAPTER_NARRATIVES, SECTION_NARRATIVES } from '../domain/bookNarrative';
@@ -317,6 +319,7 @@ export function TextbookPage() {
       ?.filter((d) => d.stageId === current.id)
       .map((d) => d.pageId) ?? []),
   ]);
+  const diaryNotes = diaryNotesFor(current.id);
   const records = wiki.edits.filter((e) => pageIds.has(e.page_id)).flatMap((e) => e.events);
   const recording = records.find((e) => e.recordingId === recordingId)?.recording;
   const currentTitle = pageName(cursor.chapter, cursor.page);
@@ -1319,13 +1322,14 @@ export function TextbookPage() {
                   製作記録が未接続です。実写真と詳しい観察記録は、資料を接続した環境で読めます。
                 </p>
               )}
+              <DiaryNotes notes={diaryNotes} />
               <footer className="book-page-footer">
                 <span>
                   {pad(leafPage)} <small>/ {totalPages}</small>
                 </span>
                 <button onClick={() => setNotes(true)}>
                   <StickyNote size={15} />
-                  この章の付箋 {records.length > 0 && records.length}
+                  この章の付箋 {diaryNotes.length + records.length}
                 </button>
               </footer>
             </article>
@@ -1481,7 +1485,9 @@ export function TextbookPage() {
           </Modal>
         )}
         {notes && (
-          <Modal title={`${current.title}に添えられた記録`} close={() => setNotes(false)} wide>
+          <Modal title={`${current.title}の付箋`} close={() => setNotes(false)} wide>
+            <DiaryNotes notes={diaryNotes} />
+            <h2>追加された作業記録</h2>
             {records.length ? (
               records.map((record) => (
                 <button

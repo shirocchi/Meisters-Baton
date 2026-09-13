@@ -1977,3 +1977,76 @@ body .modal:has(.book-search) .modal-head {
     color: #212121;
   }
 }
+
+/* Diary-derived cautions: compact, expandable notes with source attribution. */
+.book-diary {
+  margin: 32px 0;
+  color: #28323f;
+}
+.book-diary h2 {
+  font-size: 1.15rem;
+}
+.book-diary h2 small {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.book-diary-intro,
+.book-diary-access {
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: #56616c;
+}
+.book-diary-grid {
+  display: grid;
+  gap: 12px;
+}
+.book-diary-card {
+  background: #fff8dc;
+  border: 1px solid #e3d79f;
+  border-left: 4px solid #b89027;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+.book-diary-card summary {
+  cursor: pointer;
+  padding: 14px 16px;
+  min-height: 44px;
+  line-height: 1.7;
+}
+.book-diary-card summary:focus-visible {
+  outline: 3px solid #4051b5;
+  outline-offset: 2px;
+}
+.book-diary-card summary strong {
+  font-weight: 650;
+}
+.book-diary-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #725415;
+  margin-right: 10px;
+}
+.book-diary-body {
+  padding: 0 18px 18px;
+  font-size: 0.92rem;
+  line-height: 1.9;
+}
+.book-diary-body p {
+  margin: 8px 0 14px;
+}
+.book-diary-body .book-diary-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: 14px 0 2px;
+}
+.book-diary-source {
+  color: #655d43;
+  font-size: 0.8rem;
+}
+.book-diary-body a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #3446a0;
+  text-decoration: underline;
+}
