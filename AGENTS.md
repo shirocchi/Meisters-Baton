@@ -28,3 +28,9 @@ Desktop-first application for capturing craft knowledge through recorded work, q
 - Resolve conflicts by preserving the current target-branch behavior and applying only the intended new delta. Do not restore an older whole-file snapshot or choose `ours`/`theirs` without reviewing the semantic result.
 - Review the final diff against the refreshed target branch and test the combined application state, including regressions in behavior changed by concurrent work. Passing tests on the isolated pre-sync branch is not sufficient.
 - Merge order follows dependency order, not completion time. The owner of the later or dependent pull request is responsible for proving that the combined result retains already-merged progress.
+
+## Textbook source of truth
+
+- Develop the textbook on `shirocchi/Meisters-Baton:codex/growing-textbook` and review it through `kob952/Meisters-Baton#22` until integration into upstream main. Keep textbook prose, UI, 3D, diary notes, and their checks together.
+- Edit the existing textbook worktree. Do not create or edit a separate hosting copy as another source of truth. Deployment artifacts must come from an identified Git commit.
+- The earlier chatgpt.site preview is a frozen snapshot as of 2026-09-13. Do not resume updating it unless the user explicitly requests that. Track the current preview and review instructions in the same pull request and `docs/textbook-review.md`.
