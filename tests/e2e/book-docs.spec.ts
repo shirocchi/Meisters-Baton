@@ -17,12 +17,14 @@ test('the documentation header stays visible while the passage and side navigati
   await expect(header).toHaveCSS('background-color', 'rgb(64, 81, 181)');
   await expect(page.locator('.book-copy')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page
-    .getByRole('navigation', { name: 'この工程の目次', exact: true })
-    .getByRole('button', { name: /^02\s/ })
-    .click();
+    .locator('#book-section-web-1 [data-step="1"]')
+    .evaluate((el) => el.scrollIntoView({ block: 'start' }));
   expect((await header.boundingBox())?.y).toBe(0);
   expect((await header.boundingBox())?.height).toBe(48);
-  await expect(page.locator('[data-step="1"]')).toBeFocused();
+  await expect(page.locator('.book-visual [data-process-step]')).toHaveAttribute(
+    'data-process-step',
+    '1',
+  );
   await expect(page.getByRole('button', { name: '教材を検索', exact: true })).toBeInViewport();
   await page.getByRole('button', { name: '工房へ戻る', exact: true }).click();
   await expect(page).toHaveURL(/#home$/);
@@ -51,7 +53,7 @@ test('textbook search supports combined terms and opens the matching chapter pas
   await result.click();
   await expect(dialog).toHaveCount(0);
   await expect(page).toHaveURL(/#library\/textbook\/web\/1$/);
-  await expect(page.getByRole('article').getByRole('heading', { level: 1 })).toBeFocused();
+  await expect(page.locator('#book-section-web-1 .book-section-title')).toBeFocused();
 });
 
 test('the compact documentation header and search remain usable on a narrow phone', async ({
@@ -73,6 +75,6 @@ test('the compact documentation header and search remain usable on a narrow phon
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: '教材を検索', exact: true })).toBeFocused();
-  await page.getByRole('button', { name: /^この工程の目次 / }).click();
-  await expect(page.getByRole('dialog', { name: 'この工程の目次', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '目次', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'プロペラ製作 目次', exact: true })).toBeVisible();
 });

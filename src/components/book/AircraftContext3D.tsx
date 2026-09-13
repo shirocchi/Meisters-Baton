@@ -116,11 +116,13 @@ const angles: Record<AircraftView, [number, number]> = {
 
 export function AircraftContext3D({
   initialView = 'aircraft',
+  readingView,
   initialPart,
   initialCamera,
   onCameraChange,
 }: {
   initialView?: AircraftView;
+  readingView?: AircraftView;
   initialPart?: 'upper' | 'under' | 'web' | 'flange' | 'spar';
   initialCamera?: AircraftCamera;
   onCameraChange?: (camera: AircraftCamera) => void;
@@ -146,6 +148,18 @@ export function AircraftContext3D({
   );
   const [rotation, setRotation] = useState(initialCamera?.rotation ?? 0);
   const [spinning, setSpinning] = useState(false);
+  useEffect(() => {
+    if (!readingView) return;
+    setView(readingView);
+    setYaw(angles[readingView][0]);
+    setPitch(angles[readingView][1]);
+    setZoom(1);
+    setOpening(readingView === 'section' ? 0.75 : 0);
+    setSelected(
+      readingView === 'section' ? 'web' : readingView === 'blade' ? 'upper' : 'propeller',
+    );
+    setSpinning(false);
+  }, [readingView]);
   const [error, setError] = useState('');
   const [point, setPoint] = useState<ProjectedPoint | null>(null);
   const [landmarks, setLandmarks] = useState<Record<string, ProjectedPoint>>({});

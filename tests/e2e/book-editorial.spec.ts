@@ -116,8 +116,8 @@ test('a section introduces its question before the record and lets readers revea
   page,
 }) => {
   await page.goto('/#library/textbook/mold/2');
-  const narrative = page.locator('.book-narrative');
-  const understanding = page.locator('.book-understanding');
+  const narrative = page.locator('#book-section-mold-2 .book-narrative');
+  const understanding = page.locator('#book-section-mold-2 .book-understanding');
   const observation = page.locator('[data-source-id="synthetic-editorial-observation"]');
   await expect(narrative).toBeVisible();
   await expect(narrative.locator('p').first()).not.toBeEmpty();

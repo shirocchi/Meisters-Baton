@@ -259,7 +259,10 @@ test.describe('production Wiki atlas', () => {
       .poll(() => edits.find((e) => e.page_id === overview.id)?.events.length, { timeout: 15000 })
       .toBe(1);
     await page.goto('/#library');
-    await page.getByRole('button', { name: /この章の付箋/ }).click();
+    await page
+      .locator('#book-section-overview-0')
+      .getByRole('button', { name: 'この章の付箋', exact: true })
+      .click();
     await expect(page.getByRole('dialog').locator('.book-note')).toContainText('ウェブ組み立て');
     await page.getByRole('dialog').locator('.book-note').click();
     await expect(page.getByRole('dialog')).toContainText('ウェブの当たり位置を合わせた。');

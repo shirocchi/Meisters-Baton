@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,7 +25,9 @@ import { CoreDetail } from '../components/book/CoreDetail';
 import { TransferDetail } from '../components/book/TransferDetail';
 import { MaskingTransferFigure } from '../components/book/MaskingTransferFigure';
 import { RehearsalFigure } from '../components/book/RehearsalFigure';
-import { ProcessNavigation, ChapterOutline } from '../components/book/BookNavigation';
+import { BookContents } from '../components/book/BookContents';
+import { SINGLE_STEP_SPAN } from '../components/atlas/processGeometry';
+import type { AircraftView } from '../components/book/aircraftGeometry';
 import { AircraftContext3D } from '../components/book/AircraftContext3D';
 import { BookSearch } from '../components/book/BookSearch';
 import type { AircraftCamera } from '../components/book/aircraftRenderer';
@@ -209,76 +211,40 @@ function Practice({
     </section>
   );
 }
-export function TextbookPage() {
-  const { navigate, auth } = useBaton();
-  const wiki = useWiki();
-  const source = useBookSources();
-  const [cursor, setCursor] = useState(parseLocation);
-  const [step, setStep] = useState(() => {
-    const initial = parseLocation();
-    return firstStep(initial.chapter, initial.page);
-  });
-  const [mode, setMode] = useState<'process' | 'model' | 'aircraft' | 'exercise'>(() =>
-    firstMode(cursor.chapter, cursor.page),
-  );
-  const [contents, setContents] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchTrigger = useRef<HTMLButtonElement>(null);
-  const [navigationPanel, setNavigationPanel] = useState<'process' | 'section' | null>(null);
-  const [readingAnchor, setReadingAnchor] = useState('intro');
-  const [notes, setNotes] = useState(false);
-  const [lookup, setLookup] = useState<BookTerm | 'index' | null>(null);
-  const [photo, setPhoto] = useState<BookMedia>();
-  const [explanationFigure, setExplanationFigure] = useState<'core' | 'transfer' | 'masking'>();
-  const dictionaryOrigin = useRef<{ element: HTMLElement | null; top: number } | null>(null);
-  const [recordingId, setRecordingId] = useState<string>();
-  const [large, setLarge] = useState(false);
-  const aircraftCamera = useRef<{ scope: string; camera: AircraftCamera } | null>(null);
-  const readingPosition = useRef<number | null>(null);
-  const [font, setFont] = useState(16);
-  const [savedPage, setSavedPage] = useState<{ chapter: number; page: number } | null>(() => {
-    try {
-      const value = JSON.parse(localStorage.getItem('baton-book-bookmark-v1') ?? 'null');
-      return value &&
-        Number.isInteger(value.chapter) &&
-        value.chapter >= 0 &&
-        value.chapter < CHAPTERS.length &&
-        Number.isInteger(value.page) &&
-        value.page >= 0 &&
-        value.page < pagesFor(CHAPTERS[value.chapter].id)
-        ? value
-        : null;
-    } catch {
-      return null;
-    }
-  });
-  function lookupTerm(selection: BookTerm | 'index') {
-    dictionaryOrigin.current = {
-      element: document.activeElement instanceof HTMLElement ? document.activeElement : null,
-      top: window.scrollY,
-    };
-    setLookup(selection);
-  }
-  function closeDictionary() {
-    setLookup(null);
-    const origin = dictionaryOrigin.current;
-    requestAnimationFrame(() => {
-      origin?.element?.focus({ preventScroll: true });
-      if (origin) window.scrollTo({ top: origin.top, behavior: 'instant' });
-    });
-  }
-  const bookmark = savedPage?.chapter === cursor.chapter && savedPage?.page === cursor.page;
-  function saveBookmark() {
-    const next = bookmark ? null : cursor;
-    setSavedPage(next);
-    try {
-      localStorage.setItem('baton-book-bookmark-v1', JSON.stringify(next));
-    } catch {}
-  }
 
-  const copy = useRef<HTMLElement>(null);
-  const nav = useRef<HTMLDivElement>(null);
-  const model = useMemo(teachingModel, []);
+type SectionCursor = { chapter: number; page: number };
+type VisualMode = 'process' | 'model' | 'aircraft' | 'exercise';
+const SECTIONS = CHAPTERS.flatMap((c, chapter) =>
+  Array.from({ length: pagesFor(c.id) }, (_, page) => ({ chapter, page })),
+);
+const sectionId = (chapter: number, page: number) => `book-section-${CHAPTERS[chapter].id}-${page}`;
+const BookSection = memo(function BookSection({
+  cursor,
+  source,
+  open,
+  lookupTerm,
+  setPhoto,
+  setExplanationFigure,
+  onVisual,
+  onNotes,
+  navigate,
+}: {
+  cursor: SectionCursor;
+  source: ReturnType<typeof useBookSources>;
+  open: (chapter: number, page?: number) => void;
+  lookupTerm: (term: BookTerm | 'index') => void;
+  setPhoto: (media: BookMedia) => void;
+  setExplanationFigure: (figure: 'core' | 'transfer' | 'masking') => void;
+  onVisual: (
+    chapter: number,
+    page: number,
+    step: number,
+    mode: VisualMode,
+    enlarge?: boolean,
+  ) => void;
+  onNotes: (chapter: number) => void;
+  navigate: ReturnType<typeof useBaton>['navigate'];
+}) {
   const current = CHAPTERS[cursor.chapter];
   const lesson = LESSONS[current.id];
   const rehearsal = BOOK_REHEARSALS[current.id as BookRehearsalStageId];
@@ -310,34 +276,662 @@ export function TextbookPage() {
     practices
       .slice(0, practices.indexOf(item))
       .reduce((sum, p) => sum + p.media.length + Number(hasDetail(p)), 0);
-  const stage = wiki.archive?.atlas?.stages.find((s) => s.id === current.id);
+  const matched = (index: number) =>
+    practices.filter((p) => p.stepId === PROCESS_STEPS[current.id][index].id);
+  const remaining = group
+    ? practices.filter((p) => !PROCESS_STEPS[current.id].some((s) => s.id === p.stepId))
+    : [];
+
+  const currentTitle = pageName(cursor.chapter, cursor.page);
+  const leafPage =
+    SECTIONS.findIndex((s) => s.chapter === cursor.chapter && s.page === cursor.page) + 1;
+  const diaryNotes = diaryNotesFor(current.id);
+  return (
+    <section
+      className="book-story-section"
+      id={sectionId(cursor.chapter, cursor.page)}
+      data-chapter={cursor.chapter}
+      data-page={cursor.page}
+      aria-label={`${current.title}・${currentTitle}`}
+    >
+      <div className="book-running">
+        <span>{cursor.chapter ? `第${cursor.chapter}章　${current.title}` : '序章　はじめに'}</span>
+        <span>{pad(leafPage)}</span>
+      </div>
+      <header className="book-page-heading">
+        <h2 tabIndex={-1} className="book-section-title">
+          {currentTitle}
+        </h2>
+      </header>
+      <div className="book-page-menu">
+        <strong>
+          <List size={17} />
+          この節で学ぶこと
+        </strong>
+        <p>
+          {cursor.page === 0
+            ? current.subtitle
+            : (group?.purpose ??
+              (isEnd
+                ? '学んだ手順を試し、次の工程へ進む前に理解を確かめます。'
+                : '型から仕上げまで、製作の工程とつながりを確認します。'))}
+        </p>
+      </div>
+      {current.id === 'overview' ? (
+        cursor.page === 0 ? (
+          <>
+            <p className="book-lead" data-view="aircraft">
+              人力飛行機は、人がペダルをこぐ力で飛ぶ飛行機です。スクロールすると図も動きます。まずは3D表示で、機体全体を眺めてみましょう。大きく横に広がるのが「主翼」、後ろにある小さな翼が「尾翼」です。人が乗る操縦席は、主翼の中央付近の下にあります。
+            </p>
+            <p data-view="propeller">
+              機体の前端にあたる「機首」にあるのが、回転して機体を前へ進める「プロペラ」です。この教材では、このプロペラの製作を学びます。3D表示ではプロペラに色を付けています。「プロペラ」を選ぶと拡大でき、さらに羽根の一本である「ブレード」へ進めます。
+            </p>
+            <h2>ペダルの力は、どうやって前に進む力になるのでしょうか</h2>
+            <p>
+              <BookText>
+                自転車なら、ペダルを踏んだ力を車輪から地面へ伝えて前に進みます。人力飛行機では、その力でプロペラを回し、空気を後ろへ送ります。空気を後ろへ押すと、プロペラも空気から前向きに押されます。これが機体を前へ進める力になります。
+              </BookText>
+            </p>
+            <p data-view="blade">
+              <BookText>
+                プロペラの羽根の一本を「ブレード」と呼びます。ブレードは、回転しながら空気に働きかける翼です。この教材で追うのは、26代がそのブレードを形にしていった製作記録。形をどう写し、内側をどう組み、二つの面をどう閉じたのかを、写真と動く模型でたどります。
+              </BookText>
+            </p>
+            <p className="book-citations">
+              <a
+                href="https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/propellers/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                プロペラが進む力を生む仕組み · NASA ↗
+              </a>
+            </p>
+            <h2 data-view="section">完成すると、内側は見えなくなる</h2>
+            <p>
+              <BookText>
+                手のひらで包むように、二つの薄い殻を合わせるところを想像してください。この殻が、空気に触れる外形をつくる「外皮」です。26代の記録では、二つの側を
+                upper（アッパー）と
+                under（アンダー）と呼び分けます。模型を回すと画面の上下は変わるので、部材についた名前で区別します。
+              </BookText>
+            </p>
+            <p>
+              <BookText>
+                殻の内側には、細長い支えや板状の部材が入ります。その名前を今すべて覚える必要はありません。まず確かめたいのは、支えがどの面に接しているか。そして、殻を閉じた後では、その接触を直接見られなくなるということです。
+              </BookText>
+            </p>
+            <p>
+              <BookText>
+                左の3D表示で「断面と内部」を選び、外皮を開いてみましょう。薄い殻と、その間に立つ板を見分けてください。これから読む工程は、内側を見られるうちに部材を組み、接する場所を確かめていく順序でもあります。
+              </BookText>
+            </p>
+            {source.data?.stages.web?.practice
+              .find((p) => p.id === 'web-standing')
+              ?.media.slice(0, 1)
+              .map((m) => (
+                <Photo key={m.filename} media={m} onOpen={setPhoto} figure="図0-1" />
+              ))}
+            {source.data?.stages.web?.practice.find((p) => p.id === 'web-standing')?.media[0]
+              ?.localUrl && (
+              <>
+                <p>
+                  <BookText>
+                    図0-1では、外皮の中を長く走る板状の支えを見てください。これが、後の章で「ウェブ」と呼ぶ部材です。横向きに並ぶ板は、作業中の位置と向きを保つ道具――「治具」です。製品に残す支えと、作業後に外す道具を、同じ写真で見分けてみましょう。
+                  </BookText>
+                </p>
+              </>
+            )}
+            <h2>この教材の読み方</h2>
+            <p>
+              各節は、これから解きたい疑問から始まります。左の図で動きを追い、右の写真で実物を確かめ、最後に自分の言葉で理由を説明してみてください。章末には、紙などを使って位置や順序を試す練習を用意しています。
+            </p>
+            <p>
+              点線の付いた言葉を押すと、その場で意味を読めます。読み方から探すときは、ページ上部の「ことばを調べる」を使ってください。日付のある記述は現場の記録で、試作・補修の例と、学習のための問いは区別しています。
+            </p>
+            <h2>最初の疑問は、形をどう残すか</h2>
+            <p>
+              <BookText>
+                まだ薄い殻も支えもありません。図面にある形を、実際の材料にどう移せばよいのでしょう。第1章は、製品より先に、その形を繰り返し写すための道具――「型」をつくるところから始まります。
+              </BookText>
+            </p>
+            <p>
+              先輩に確認しなければ決められない値は、そのまま未確定と示します。設計計算、工具の習熟、使用前検査はこの本文だけで完結しません。
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="book-lead">
+              型で形を決め、外皮をつくり、内側を組んでから閉じる。前の工程でつくったものが、次の工程の出発点になります。
+            </p>
+            <ol className="book-roadmap">
+              {CHAPTERS.slice(1).map((c, i) => (
+                <li key={c.id}>
+                  <button onClick={() => open(i + 1)}>
+                    <span>{pad(i + 1)}</span>
+                    <div>
+                      <h2>{c.title}</h2>
+                      <p>{CHAPTER_NARRATIVES[c.id].question}</p>
+                    </div>
+                    <ArrowRight size={18} />
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <h2>作業の前後を残す</h2>
+            <p>
+              完成した状態だけでなく、置き方・手元・位置合わせ・迷った点も記録します。写真の説明で判断が分からないときは、実際に作業した人の答えを同じ章へ添えます。
+            </p>
+          </>
+        )
+      ) : cursor.page === 0 ? (
+        <>
+          <section className="book-narrative" data-reading-anchor="intro" tabIndex={-1}>
+            <h2>{chapterNarrative.title}</h2>
+            {chapterNarrative.paragraphs.map((paragraph, i) => (
+              <p key={i} className={i === 0 ? 'book-lead' : undefined}>
+                <BookText>{paragraph}</BookText>
+              </p>
+            ))}
+            <p className="book-chapter-question">
+              <BookText>{chapterNarrative.question}</BookText>
+            </p>
+          </section>
+          {current.id === 'flange' && (
+            <p className="book-reading-order">
+              この章は2回使います。
+              <strong>
+                upperのフランジ → 第4章の内部組立 → この章へ戻ってunderの位置出し・積層
+              </strong>
+              の順です。underの位置をウェブ上端から写す記録では、先に実際のウェブが必要になります。
+            </p>
+          )}
+          <div className="book-receive">
+            <h2>受け取るもの</h2>
+            <p>
+              <BookText>{lesson.input}</BookText>
+            </p>
+            <h2>この章の終わりにできるもの</h2>
+            <p>
+              <BookText>{lesson.output}</BookText>
+            </p>
+          </div>
+          <h2>材料と道具をそろえる</h2>
+          <p>
+            作業を始める前に、以下の材料と道具を実物と照合します。数量・品番・配合条件は、今回使う図面と材料仕様で確かめます。
+          </p>
+          <ul>
+            {lesson.tools.map((t) => (
+              <li key={t}>
+                <BookText>{t}</BookText>
+              </li>
+            ))}
+          </ul>
+          <h2>この章で使う言葉</h2>
+          <p>
+            材料名や作業の言葉を、ここでも確かめられます。名前を押すと用途や似た言葉との違いを読めます。
+          </p>
+          <div className="book-chapter-words">
+            {BOOK_GLOSSARY.filter((term) => term.chapter === current.id).map((term) => (
+              <button key={term.id} onClick={() => lookupTerm(term)}>
+                {term.term}
+                <span>{term.short}</span>
+              </button>
+            ))}
+          </div>
+          <h2>作業の順序を見渡す</h2>
+          <ol className="book-mini-contents">
+            {lesson.groups.map((g, i) => (
+              <li key={g.title}>
+                <button onClick={() => open(cursor.chapter, i + 1)}>
+                  <span>
+                    {cursor.chapter}.{i + 1}
+                  </span>
+                  <div>
+                    <strong>{g.title}</strong>
+                    <p>{g.purpose}</p>
+                  </div>
+                  <ArrowRight size={15} />
+                </button>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : isEnd ? (
+        <>
+          <section className="book-narrative" data-reading-anchor="intro" tabIndex={-1}>
+            <h2>章の最初の疑問に戻る</h2>
+            <p className="book-chapter-question">
+              <BookText>{chapterNarrative.question}</BookText>
+            </p>
+            <p>
+              <BookText>{chapterNarrative.resolved}</BookText>
+            </p>
+          </section>
+          {current.id === 'web' && (
+            <p className="book-reading-order">
+              under側のフランジ位置をまだ決めていない場合は、
+              <a href="#library/textbook/flange/1">
+                第3章「underは、実際のウェブ上端から位置を写す」へ戻ります
+              </a>
+              。位置出し・積層と接触の確認を終えてから、貼り合わせへ進みます。
+            </p>
+          )}
+          {current.id === 'flange' && (
+            <div className="book-reading-order">
+              <p>どちら側を終えたかで、次に開く章が変わります。</p>
+              <button className="book-action" onClick={() => open(4, 0)}>
+                upperを終えた → 第4章で内部を組む <ArrowRight size={16} />
+              </button>
+              <button className="book-action" onClick={() => open(5, 1)}>
+                underも終えた → 第5章で仮合わせを確かめる <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
+          <section className="book-rehearsal">
+            <span className="book-source-date">章末演習 · 学習用に編集した練習</span>
+            <h2>{rehearsal.title}</h2>
+            <p>
+              <BookText>{rehearsal.setup}</BookText>
+            </p>
+            <button
+              className="book-action"
+              onClick={() => {
+                onVisual(
+                  cursor.chapter,
+                  cursor.page,
+                  firstStep(cursor.chapter, cursor.page),
+                  firstMode(cursor.chapter, cursor.page),
+                  true,
+                );
+              }}
+            >
+              演習で使う図を開く <Maximize2 size={16} />
+            </button>
+            <ol className="book-actions">
+              {rehearsal.actions.map((action) => (
+                <li key={action}>
+                  <BookText>{action}</BookText>
+                </li>
+              ))}
+            </ol>
+            <details className="book-worked-example">
+              <summary>手を動かしたら、説明例と比べる</summary>
+              <p>
+                <BookText>{rehearsal.explanation}</BookText>
+              </p>
+            </details>
+            <p className="book-observation">
+              <strong>実物の作業へ進む前に</strong>
+              <BookText>{rehearsal.remaining}</BookText>
+            </p>
+          </section>
+          <h2>何を確認して渡すか</h2>
+          <ul className="book-completion-list">
+            {lesson.finish.map((item) => (
+              <li key={item}>
+                <BookText>{item}</BookText>
+              </li>
+            ))}
+          </ul>
+          <h2>まだ決められない条件</h2>
+          <p>
+            次の条件は、ここに収録した記録だけでは確定しません。使用する材料・図面・設備と、担当者の判断を照合します。
+          </p>
+          <ul>
+            {lesson.missing.map((item) => (
+              <li key={item}>
+                <BookText>{item}</BookText>
+              </li>
+            ))}
+          </ul>
+          <h2>{current.id === 'finish' ? 'この先の確認へ' : '次の工程につながること'}</h2>
+          <p>
+            <BookText>{chapterNarrative.next}</BookText>
+          </p>
+          <h2>次の担当者に伝えること</h2>
+          {current.id === 'finish' && (
+            <section className="book-final-exercise">
+              <h3>本を閉じる前に、実例から3行を書いてみる</h3>
+              <p>
+                第5章の「{SECTION_NARRATIVES.join[2].title}
+                」を開き、前縁の浮きを扱った記録を読み直します。紙に次の3行を書いてから、説明例を開いてください。
+              </p>
+              <a className="book-action" href="#library/textbook/join/3">
+                第5章の補修記録を読み直す ↗
+              </a>
+              <ol className="book-actions">
+                <li>いつ、どの部材の、どこに気になる状態があったか。</li>
+                <li>記録の文章が伝えることと、写真から自分で指せることを分けて書く。</li>
+                <li>次の担当者が作業を決めるために、まだ確認する必要があることを一つ書く。</li>
+              </ol>
+              <details className="book-worked-example">
+                <summary>3行書いたら、引き継ぎの説明例と比べる</summary>
+                <p>
+                  <BookText>
+                    ①記録では、脱型後のunderの前縁端に、治具と治具の間で浮きが見つかっています。②文章は追加樹脂とテープによる補修を伝え、写真では短いテープで保持した場所を指せます。③この写真だけでは内部の接着状態や補修の最終合否を判断できないため、確認した方法と結果を担当者に聞く必要があります。
+                  </BookText>
+                </p>
+                <p>
+                  自分が行っていない作業を「確認した」と書かず、「記録にある事実」「写真から読めること」「まだ分からないこと」に分けられたかを見直します。
+                </p>
+              </details>
+            </section>
+          )}
+
+          <p>
+            部材の全体写真、確認した位置の拡大、使用した条件、うまくいかなかった点を記録します。未確認の箇所も明記してください。
+          </p>
+          <button className="book-action" onClick={() => navigate('capture')}>
+            <Camera size={17} />
+            この工程の作業を記録する
+          </button>
+        </>
+      ) : (
+        <>
+          <section className="book-narrative" data-reading-anchor="intro" tabIndex={-1}>
+            <h2>{narrative.title}</h2>
+            {narrative.paragraphs.map((paragraph, i) => (
+              <p key={i}>
+                <BookText>{paragraph}</BookText>
+              </p>
+            ))}
+            {current.id === 'skin' && cursor.page === 2 && (
+              <>
+                <p className="book-citations">
+                  <a
+                    href="https://www.gurit.com/wp-content/uploads/2025/11/Core-brochure_v21_web.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    芯と面材の役割 · Gurit「Sandwich panel engineering theory」↗
+                  </a>
+                </p>
+                <p>
+                  <BookText>
+                    手元に段ボールの切れ端があれば、切り口を見てみましょう。表の紙、間隔を保つ波形の紙、裏の紙を指し分けます。材料や接着方法は外皮と違いますが、薄い面を離してつなぐ形を、身近な物でも探せます。
+                  </BookText>
+                </p>
+                <p>
+                  <BookText>
+                    この節のクロスの「±45°」は、根元から先端へ向かう線に対し、繊維が右斜め・左斜めの45度へ走るという読み方です。画面の縦横や型の縁を基準にせず、実物の長手方向を先に指します。
+                  </BookText>
+                </p>
+              </>
+            )}
+            <p className="book-observe">
+              <BookText>{narrative.observe}</BookText>
+            </p>
+            <button
+              className="book-action"
+              onClick={() => {
+                onVisual(cursor.chapter, cursor.page, narrative.step, 'process');
+              }}
+            >
+              この工程の動きを見る <ArrowLeft size={16} />
+            </button>
+            {current.id === 'mold' &&
+              cursor.page === 2 &&
+              practices.find((p) => p.id === 'mold-sand-datum')?.media[0]?.localUrl && (
+                <button
+                  className="book-action"
+                  onClick={() =>
+                    setPhoto(practices.find((p) => p.id === 'mold-sand-datum')!.media[0])
+                  }
+                >
+                  色分けした練習図を開く <Maximize2 size={16} />
+                </button>
+              )}
+            {current.id === 'skin' && cursor.page === 2 && (
+              <button className="book-action" onClick={() => setExplanationFigure('core')}>
+                コアの継ぎ目を比べる図を開く <Maximize2 size={16} />
+              </button>
+            )}
+            {current.id === 'skin' && cursor.page === 1 && (
+              <button className="book-action" onClick={() => setExplanationFigure('transfer')}>
+                搬送の図と写真を開く <Maximize2 size={16} />
+              </button>
+            )}
+            {current.id === 'finish' && cursor.page === 2 && (
+              <button className="book-action" onClick={() => setExplanationFigure('masking')}>
+                運ぶテープと残すテープの図を開く <Maximize2 size={16} />
+              </button>
+            )}
+            {narrativeRecords.length > 0 && (
+              <div className="book-narrative-records">
+                参照する製作記録：
+                {narrativeRecords.map(({ item, chapter, page, stageId }) => (
+                  <a
+                    key={item.id}
+                    href={`#library/textbook/${stageId}/${page}`}
+                    onClick={(event) => {
+                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                      event.preventDefault();
+                      if (chapter !== cursor.chapter || page !== cursor.page) open(chapter, page);
+                      requestAnimationFrame(() => {
+                        const record = document.getElementById(`book-record-${item.id}`);
+                        record?.scrollIntoView({ block: 'start', behavior: 'instant' });
+                        record?.focus({ preventScroll: true });
+                      });
+                    }}
+                  >
+                    {chapter === cursor.chapter && page === cursor.page
+                      ? 'この節'
+                      : `第${chapter}章 ${chapter}.${page}`}{' '}
+                    · {item.title}
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+          {Array.from({ length: group.to - group.from + 1 }, (_, i) => group.from + i).map(
+            (index) => (
+              <section
+                className="book-step"
+                key={index}
+                data-step={index}
+                data-reading-anchor={`step-${index}`}
+                tabIndex={-1}
+              >
+                <div className="book-step-label">
+                  <span>手順 {pad(index + 1)}</span>
+                  <button
+                    onClick={() => {
+                      onVisual(cursor.chapter, cursor.page, index, 'process');
+                    }}
+                  >
+                    この動きを図で見る <ArrowLeft size={14} />
+                  </button>
+                </div>
+                <h2>{PROCESS_STEPS[current.id][index].title}</h2>
+                {current.id === 'web' && index === 1 && (
+                  <p>
+                    <BookText>
+                      位置を表す r
+                      は、前段の部材の太さ（直径）とは別の記号です。この抜粋には測り始める点が明記されていません。部品の端からの距離と決めつけず、図面の基準点と測る方向を担当者と確かめてから使います。
+                    </BookText>
+                  </p>
+                )}
+                <p>
+                  <BookText>{PROCESS_STEPS[current.id][index].detail}</BookText>
+                </p>
+                {matched(index).length ? (
+                  matched(index).map((item) => (
+                    <Practice
+                      key={item.id}
+                      item={item}
+                      onOpen={setPhoto}
+                      chapter={cursor.chapter}
+                      figureStart={figureStart(item)}
+                    />
+                  ))
+                ) : (
+                  <p className="book-source-gap">
+                    この操作の手元写真・具体的な判断は、現時点の収録資料では補えていません。下の確認点を作業者と照合します。
+                  </p>
+                )}
+              </section>
+            ),
+          )}
+          {remaining.length > 0 &&
+            cursor.page === 1 &&
+            remaining.map((item) => (
+              <Practice
+                key={item.id}
+                item={item}
+                onOpen={setPhoto}
+                chapter={cursor.chapter}
+                figureStart={figureStart(item)}
+              />
+            ))}
+          <section
+            className="book-understanding"
+            data-reading-anchor="review"
+            tabIndex={-1}
+            key={`${current.id}-${cursor.page}`}
+          >
+            <h2>ここまでを、自分の言葉で</h2>
+            <p>
+              <BookText>{narrative.think}</BookText>
+            </p>
+            <details className="book-worked-example">
+              <summary>考えたら、説明と照らし合わせる</summary>
+              <p>
+                <BookText>{narrative.answer}</BookText>
+              </p>
+            </details>
+            <p className="book-carry">
+              <BookText>{narrative.carry}</BookText>
+            </p>
+          </section>
+          <section className="book-stop">
+            <h2>次へ進む前に</h2>
+            <p>
+              <BookText>{group.check}</BookText>
+            </p>
+            <details>
+              <summary>この工程で確認が必要な条件</summary>
+              <ul>
+                {lesson.missing.map((item) => (
+                  <li key={item}>
+                    <BookText>{item}</BookText>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </section>
+        </>
+      )}
+      {source.loading && <p role="status">製作写真を読み込んでいます…</p>}
+      {source.error && (
+        <p className="book-source-gap">
+          製作記録が未接続です。実写真と詳しい観察記録は、資料を接続した環境で読めます。
+        </p>
+      )}
+      {isEnd && <DiaryNotes notes={diaryNotes} />}
+      <footer className="book-page-footer">
+        <button onClick={() => onNotes(cursor.chapter)}>
+          <StickyNote size={15} />
+          この章の付箋
+        </button>
+      </footer>
+    </section>
+  );
+});
+
+export function TextbookPage() {
+  const { navigate, auth } = useBaton();
+  const wiki = useWiki();
+  const source = useBookSources();
+  const [cursor, setCursor] = useState(parseLocation);
+  const [step, setStep] = useState(() => {
+    const initial = parseLocation();
+    return firstStep(initial.chapter, initial.page);
+  });
+  const [mode, setMode] = useState<'process' | 'model' | 'aircraft' | 'exercise'>(() =>
+    firstMode(cursor.chapter, cursor.page),
+  );
+  const [contents, setContents] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchTrigger = useRef<HTMLButtonElement>(null);
+  const [overviewView, setOverviewView] = useState<AircraftView>('aircraft');
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const syncScroll = useRef<() => void>(() => {});
+  const activeCursor = useRef(cursor);
+  activeCursor.current = cursor;
+  const [notesChapter, setNotesChapter] = useState(0);
+  const [readingAnchor, setReadingAnchor] = useState('intro');
+  const [notes, setNotes] = useState(false);
+  const [lookup, setLookup] = useState<BookTerm | 'index' | null>(null);
+  const [photo, setPhoto] = useState<BookMedia>();
+  const [explanationFigure, setExplanationFigure] = useState<'core' | 'transfer' | 'masking'>();
+  const dictionaryOrigin = useRef<{ element: HTMLElement | null; top: number } | null>(null);
+  const [recordingId, setRecordingId] = useState<string>();
+  const [large, setLarge] = useState(false);
+  const aircraftCamera = useRef<{ scope: string; camera: AircraftCamera } | null>(null);
+  const readingPosition = useRef<number | null>(null);
+  const [font, setFont] = useState(16);
+  const [savedPage, setSavedPage] = useState<{ chapter: number; page: number } | null>(() => {
+    try {
+      const value = JSON.parse(localStorage.getItem('baton-book-bookmark-v1') ?? 'null');
+      return value &&
+        Number.isInteger(value.chapter) &&
+        value.chapter >= 0 &&
+        value.chapter < CHAPTERS.length &&
+        Number.isInteger(value.page) &&
+        value.page >= 0 &&
+        value.page < pagesFor(CHAPTERS[value.chapter].id)
+        ? value
+        : null;
+    } catch {
+      return null;
+    }
+  });
+  const lookupTerm = useCallback((selection: BookTerm | 'index') => {
+    dictionaryOrigin.current = {
+      element: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      top: window.scrollY,
+    };
+    setLookup(selection);
+  }, []);
+  function closeDictionary() {
+    setLookup(null);
+    const origin = dictionaryOrigin.current;
+    requestAnimationFrame(() => {
+      origin?.element?.focus({ preventScroll: true });
+      if (origin) window.scrollTo({ top: origin.top, behavior: 'instant' });
+    });
+  }
+  const bookmark = savedPage?.chapter === cursor.chapter && savedPage?.page === cursor.page;
+  function saveBookmark() {
+    const next = bookmark ? null : cursor;
+    setSavedPage(next);
+    try {
+      localStorage.setItem('baton-book-bookmark-v1', JSON.stringify(next));
+    } catch {}
+  }
+
+  const copy = useRef<HTMLElement>(null);
+  const nav = useRef<HTMLDivElement>(null);
+  const model = useMemo(teachingModel, []);
+  const current = CHAPTERS[cursor.chapter];
+  const lesson = LESSONS[current.id];
+  const isEnd = !!lesson && cursor.page === pagesFor(current.id) - 1;
+  const practices = [...(source.data?.stages[current.id]?.practice ?? [])].sort(
+    (a, b) =>
+      (PROCESS_STEPS[current.id]?.findIndex((s) => s.id === a.stepId) ?? -1) -
+      (PROCESS_STEPS[current.id]?.findIndex((s) => s.id === b.stepId) ?? -1),
+  );
+  const notesId = CHAPTERS[notesChapter].id;
+  const stage = wiki.archive?.atlas?.stages.find((s) => s.id === notesId);
   const assets = wiki.pages.flatMap((p) => p.attachments);
   const modelAsset = assets.find((a) => a.id === wiki.archive?.atlas?.modelAssetId);
   const pageIds = new Set([
     stage?.pageId,
-    ...(wiki.archive?.atlas?.details
-      ?.filter((d) => d.stageId === current.id)
-      .map((d) => d.pageId) ?? []),
+    ...(wiki.archive?.atlas?.details?.filter((d) => d.stageId === notesId).map((d) => d.pageId) ??
+      []),
   ]);
-  const diaryNotes = diaryNotesFor(current.id);
   const records = wiki.edits.filter((e) => pageIds.has(e.page_id)).flatMap((e) => e.events);
   const recording = records.find((e) => e.recordingId === recordingId)?.recording;
   const currentTitle = pageName(cursor.chapter, cursor.page);
-  const previousTitle =
-    cursor.page > 0
-      ? pageName(cursor.chapter, cursor.page - 1)
-      : cursor.chapter > 0
-        ? `${CHAPTERS[cursor.chapter - 1].title}・${pageName(cursor.chapter - 1, pagesFor(CHAPTERS[cursor.chapter - 1].id) - 1)}`
-        : '';
-  const nextTitle =
-    cursor.page < pageCount - 1
-      ? pageName(cursor.chapter, cursor.page + 1)
-      : cursor.chapter < CHAPTERS.length - 1
-        ? `${CHAPTERS[cursor.chapter + 1].title}・導入`
-        : '';
-  const leafPage =
-    CHAPTERS.slice(0, cursor.chapter).reduce((n, c) => n + pagesFor(c.id), 0) + cursor.page + 1;
-  const totalPages = CHAPTERS.reduce((n, c) => n + pagesFor(c.id), 0);
   const searchEntries = useMemo(
     () =>
       CHAPTERS.flatMap((chapter, chapterIndex) =>
@@ -422,27 +1016,6 @@ export function TextbookPage() {
     update();
     return () => observer.disconnect();
   }, []);
-  useLayoutEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    copy.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
-  }, [cursor.chapter, cursor.page]);
-  useEffect(() => {
-    const restore = () => {
-      const next = parseLocation();
-      setCursor(next);
-      setStep(firstStep(next.chapter, next.page));
-      setMode(firstMode(next.chapter, next.page));
-      setContents(false);
-      setNavigationPanel(null);
-      setReadingAnchor('intro');
-    };
-    window.addEventListener('hashchange', restore);
-    window.addEventListener('popstate', restore);
-    return () => {
-      window.removeEventListener('hashchange', restore);
-      window.removeEventListener('popstate', restore);
-    };
-  }, []);
   function closeVisual() {
     setLarge(false);
     if (readingPosition.current !== null) {
@@ -451,83 +1024,183 @@ export function TextbookPage() {
       readingPosition.current = null;
     }
   }
-  function open(chapter: number, page = 0) {
-    const id = CHAPTERS[chapter].id;
-    setCursor({ chapter, page });
-    setStep(firstStep(chapter, page));
-    setMode(firstMode(chapter, page));
+  const open = useCallback((chapter: number, page = 0) => {
     setContents(false);
-    setNavigationPanel(null);
-    setReadingAnchor('intro');
-    history.pushState(null, '', `#library/textbook/${id}/${page}`);
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    requestAnimationFrame(() =>
-      copy.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true }),
-    );
-  }
-  const turn = (direction: number) => {
-    const next = cursor.page + direction;
-    if (next < 0) {
-      if (cursor.chapter > 0)
-        open(cursor.chapter - 1, pagesFor(CHAPTERS[cursor.chapter - 1].id) - 1);
-    } else if (next >= pageCount) {
-      if (cursor.chapter < CHAPTERS.length - 1) open(cursor.chapter + 1, 0);
-    } else open(cursor.chapter, next);
-  };
-
+    history.pushState(null, '', `#library/textbook/${CHAPTERS[chapter].id}/${page}`);
+    const target = document.getElementById(sectionId(chapter, page));
+    if (chapter === 0 && page === 0) window.scrollTo({ top: 0, behavior: 'instant' });
+    else target?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    requestAnimationFrame(() => {
+      target?.querySelector<HTMLElement>('.book-section-title')?.focus({ preventScroll: true });
+      syncScroll.current();
+    });
+  }, []);
+  const onVisual = useCallback(
+    (chapter: number, page: number, next: number, nextMode: VisualMode, enlarge = false) => {
+      setCursor({ chapter, page });
+      history.replaceState(null, '', `#library/textbook/${CHAPTERS[chapter].id}/${page}`);
+      setStep(next);
+      setMode(nextMode);
+      if (enlarge || window.matchMedia('(max-width: 767px)').matches) {
+        readingPosition.current = window.scrollY;
+        setLarge(true);
+      }
+    },
+    [],
+  );
+  const onNotes = useCallback((chapter: number) => {
+    setNotesChapter(chapter);
+    setNotes(true);
+  }, []);
+  // The long article is independent of animation frames: preserve inputs, disclosures and media.
+  const sections = useMemo(
+    () =>
+      SECTIONS.map((section) => (
+        <BookSection
+          key={sectionId(section.chapter, section.page)}
+          cursor={section}
+          source={source}
+          open={open}
+          lookupTerm={lookupTerm}
+          setPhoto={setPhoto}
+          setExplanationFigure={setExplanationFigure}
+          onVisual={onVisual}
+          onNotes={onNotes}
+          navigate={navigate}
+        />
+      )),
+    [source.data, source.loading, source.error, open, lookupTerm, onVisual, onNotes, navigate],
+  );
+  useLayoutEffect(() => {
+    const before = history.scrollRestoration;
+    history.scrollRestoration = 'manual';
+    return () => {
+      history.scrollRestoration = before;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const initial = parseLocation();
+    if (initial.chapter === 0 && initial.page === 0) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      return;
+    }
+    document
+      .getElementById(sectionId(initial.chapter, initial.page))
+      ?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, []);
+  useEffect(() => {
+    const restore = () => {
+      if (!/^#library(?:\/textbook(?:\/|$)|$)/.test(location.hash)) return;
+      const next = parseLocation();
+      document
+        .getElementById(sectionId(next.chapter, next.page))
+        ?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      syncScroll.current();
+    };
+    window.addEventListener('hashchange', restore);
+    window.addEventListener('popstate', restore);
+    return () => {
+      window.removeEventListener('hashchange', restore);
+      window.removeEventListener('popstate', restore);
+    };
+  }, []);
   useEffect(() => {
     const root = copy.current;
-    if (!root || !group) return;
+    if (!root) return;
     let frame = 0;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const line = 48 + (nav.current?.getBoundingClientRect().height ?? 0) + 100;
-        const anchors = Array.from(root.querySelectorAll<HTMLElement>('[data-reading-anchor]'));
-        const atBottom =
-          window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
-        const anchor = atBottom
-          ? anchors.at(-1)
-          : anchors.filter((item) => item.getBoundingClientRect().top <= line).at(-1);
-        setReadingAnchor(anchor?.dataset.readingAnchor ?? 'intro');
-        if (window.matchMedia('(max-width: 767px)').matches) return;
-        const items = Array.from(root.querySelectorAll<HTMLElement>('[data-step]'));
-        const seen = atBottom
-          ? items.at(-1)
-          : items.filter((item) => item.getBoundingClientRect().top <= line).at(-1);
+      if (
+        !/^#library(?:\/textbook(?:\/|$)|$)/.test(location.hash) ||
+        document.querySelector('dialog[open], [role="dialog"]')
+      )
+        return;
+      const compact = window.matchMedia('(max-width: 767px)').matches;
+      const visualBottom =
+        document.querySelector('.book-visual')?.getBoundingClientRect().bottom ?? 0;
+      const line = compact ? visualBottom + 28 : Math.min(window.innerHeight * 0.35, 260);
+      const blocks = Array.from(root.querySelectorAll<HTMLElement>('.book-story-section'));
+      const section =
+        blocks.filter((el) => el.getBoundingClientRect().top <= line).at(-1) ?? blocks[0];
+      if (!section) return;
+      const chapter = Number(section.dataset.chapter),
+        page = Number(section.dataset.page);
+      const changed =
+        activeCursor.current.chapter !== chapter || activeCursor.current.page !== page;
+      if (changed) {
+        activeCursor.current = { chapter, page };
+        setCursor({ chapter, page });
+      }
+      const hash = `#library/textbook/${CHAPTERS[chapter].id}/${page}`;
+      if (location.hash !== hash) history.replaceState(null, '', hash);
+      const anchors = Array.from(section.querySelectorAll<HTMLElement>('[data-reading-anchor]'));
+      const anchor = anchors.filter((el) => el.getBoundingClientRect().top <= line).at(-1);
+      setReadingAnchor(anchor?.dataset.readingAnchor ?? 'intro');
+      if (!chapter) {
+        const views = Array.from(section.querySelectorAll<HTMLElement>('[data-view]'));
+        const viewLine = compact
+          ? line
+          : 48 + (nav.current?.getBoundingClientRect().height ?? 42) + 40;
+        const view = views.filter((el) => el.getBoundingClientRect().top <= viewLine).at(-1)
+          ?.dataset.view as AircraftView | undefined;
+        setOverviewView(view ?? (page ? 'blade' : 'aircraft'));
+        setMode('model');
+      } else {
+        const items = Array.from(section.querySelectorAll<HTMLElement>('[data-step]'));
+        const seen = items.filter((el) => el.getBoundingClientRect().top <= line).at(-1);
         if (seen) {
-          const index = Number(seen.dataset.step);
-          setStep((value) => (Math.floor(value) === index ? value : index));
+          const rect = seen.getBoundingClientRect();
+          const phase = reduced.matches
+            ? 1
+            : Math.max(0, Math.min(1, (line - rect.top) / Math.max(120, rect.height * 0.8)));
+          setStep(Number(seen.dataset.step) + (Math.round(phase * 200) / 200) * SINGLE_STEP_SPAN);
+          setMode('process');
+        } else {
+          setStep(firstStep(chapter, page));
+          setMode(firstMode(chapter, page));
         }
-      });
+      }
+      const height = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(
+        Math.min(100, Math.max(0, Math.round((window.scrollY / Math.max(1, height)) * 100))),
+      );
     };
-    window.addEventListener('scroll', update, { passive: true });
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+    syncScroll.current = update;
+    const resize = new ResizeObserver(schedule);
+    resize.observe(root);
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    reduced.addEventListener('change', schedule);
+    schedule();
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', update);
+      resize.disconnect();
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      reduced.removeEventListener('change', schedule);
     };
-  }, [cursor.chapter, cursor.page]);
+  }, []);
   function showStep(next: number) {
+    setContents(false);
     if (large) {
       setStep(next);
       return;
     }
-    const index = Math.floor(next);
-    const nextGroup = lesson?.groups.findIndex((g) => index >= g.from && index <= g.to);
-    if (nextGroup !== undefined && nextGroup >= 0 && cursor.page !== nextGroup + 1) {
-      open(cursor.chapter, nextGroup + 1);
-      setStep(next);
-      requestAnimationFrame(() =>
-        copy.current
-          ?.querySelector<HTMLElement>(`[data-step="${index}"]`)
-          ?.scrollIntoView({ block: 'start', behavior: 'instant' }),
-      );
-      return;
-    }
-    setStep(next);
-    if (index === Math.floor(step)) return;
-    const heading = copy.current?.querySelector<HTMLElement>(`[data-step="${Math.floor(next)}"]`);
-    heading?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    const chapter = activeCursor.current.chapter;
+    const id = CHAPTERS[chapter].id;
+    const groupIndex = LESSONS[id]?.groups.findIndex(
+      (g) => Math.floor(next) >= g.from && Math.floor(next) <= g.to,
+    );
+    if (groupIndex === undefined || groupIndex < 0) return;
+    const section = document.getElementById(sectionId(chapter, groupIndex + 1));
+    const target = section?.querySelector<HTMLElement>(`[data-step="${Math.floor(next)}"]`);
+    target?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    target?.focus({ preventScroll: true });
+    requestAnimationFrame(() => syncScroll.current());
   }
   const visual =
     mode === 'exercise' ? (
@@ -543,6 +1216,7 @@ export function TextbookPage() {
         onCameraChange={(camera) => {
           aircraftCamera.current = { scope: `${current.id}-${mode}`, camera };
         }}
+        readingView={current.id === 'overview' ? overviewView : undefined}
         initialView={
           mode === 'aircraft' || current.id === 'overview'
             ? 'aircraft'
@@ -571,51 +1245,15 @@ export function TextbookPage() {
         playback="step"
       />
     );
-  const matched = (index: number) =>
-    practices.filter((p) => p.stepId === PROCESS_STEPS[current.id][index].id);
-  const remaining = group
-    ? practices.filter((p) => !PROCESS_STEPS[current.id].some((s) => s.id === p.stepId))
-    : [];
-  function jumpToAnchor(anchor: string) {
-    setNavigationPanel(null);
-    setReadingAnchor(anchor);
-    if (anchor.startsWith('step-')) {
-      setStep(Number(anchor.slice(5)));
-      setMode('process');
-    }
-    requestAnimationFrame(() => {
-      const target = copy.current?.querySelector<HTMLElement>(`[data-reading-anchor="${anchor}"]`);
-      target?.scrollIntoView({ block: 'start', behavior: 'instant' });
-      target?.focus({ preventScroll: true });
-    });
-  }
-  const processNavigation = (
-    <ProcessNavigation chapters={CHAPTERS} current={cursor.chapter} open={open} />
-  );
-  const sectionNavigation = (
-    <ChapterOutline
-      chapter={cursor.chapter}
-      title={current.title}
-      currentPage={cursor.page}
+  const contentsNavigation = (
+    <BookContents
+      chapters={CHAPTERS}
+      current={cursor}
       currentAnchor={readingAnchor}
-      open={(page) => open(cursor.chapter, page)}
-      jump={jumpToAnchor}
-      pages={Array.from({ length: pageCount }, (_, page) => ({
-        title: pageName(cursor.chapter, page),
-        anchors:
-          page === cursor.page && group
-            ? [
-                { id: 'intro', title: '背景と考え方' },
-                ...Array.from({ length: group.to - group.from + 1 }, (_, i) => group.from + i).map(
-                  (index) => ({
-                    id: `step-${index}`,
-                    title: `${pad(index + 1)}　${PROCESS_STEPS[current.id][index].title}`,
-                  }),
-                ),
-                { id: 'review', title: '理解を確かめる' },
-              ]
-            : undefined,
-      }))}
+      pageName={pageName}
+      pagesFor={pagesFor}
+      open={open}
+      jump={(index) => showStep(index)}
     />
   );
   return (
@@ -673,33 +1311,31 @@ export function TextbookPage() {
           </div>
         </header>
         <div className="book-navigation-bar" ref={nav}>
-          <button onClick={() => setNavigationPanel('process')} aria-haspopup="dialog">
-            <List size={17} />
-            <span>
-              全体の工程 <strong>{current.title}</strong>
-            </span>
-          </button>
-          <button onClick={() => setNavigationPanel('section')} aria-haspopup="dialog">
-            <span>
-              この工程の目次{' '}
-              <strong>
-                {cursor.chapter}.{cursor.page}　{currentTitle}
-              </strong>
-            </span>
-            <List size={17} />
-          </button>
+          <span>
+            {current.title} <ChevronRight size={14} /> {currentTitle}
+          </span>
+          <span className="book-scroll-label">本文に合わせて図が動きます · {scrollProgress}%</span>
+          <div className="book-reading-progress" style={{ width: `${scrollProgress}%` }} />
         </div>
-        <div className="book-layout">
-          <div className="book-process-rail">{processNavigation}</div>
+        <div className="book-layout book-scroll-layout">
+          <div className="book-toc-rail">{!contents && contentsNavigation}</div>
           <div className="book-spread">
             <aside className="book-visual" aria-label="工程を目で見る">
               <div className="book-visual-top">
                 <span>
                   {current.id === 'overview'
                     ? '機体からブレードの内部へ'
-                    : `第${cursor.chapter}章の工程図`}
+                    : mode === 'process'
+                      ? `${current.title} · ${PROCESS_STEPS[current.id][Math.floor(step)]?.title ?? '工程図'}`
+                      : `第${cursor.chapter}章の工程図`}
                 </span>
-                <button aria-label="ビジュアルを拡大" onClick={() => setLarge(true)}>
+                <button
+                  aria-label="ビジュアルを拡大"
+                  onClick={() => {
+                    readingPosition.current = window.scrollY;
+                    setLarge(true);
+                  }}
+                >
                   <Maximize2 size={17} />
                 </button>
               </div>
@@ -773,599 +1409,14 @@ export function TextbookPage() {
               </div>
             </aside>
             <article className="book-copy" ref={copy} aria-label="教科書の本文">
-              <div className="book-running">
-                <span>
-                  {cursor.chapter ? `第${cursor.chapter}章　${current.title}` : '序章　はじめに'}
-                </span>
-                <span>{pad(leafPage)}</span>
-              </div>
-              <header className="book-page-heading">
-                <h1 tabIndex={-1}>{currentTitle}</h1>
-              </header>
-              <div className="book-page-menu">
-                <strong>
-                  <List size={17} />
-                  このページの内容
-                </strong>
-                <p>
-                  {cursor.page === 0
-                    ? current.subtitle
-                    : (group?.purpose ??
-                      (isEnd
-                        ? '学んだ手順を試し、次の工程へ進む前に理解を確かめます。'
-                        : '型から仕上げまで、製作の工程とつながりを確認します。'))}
-                </p>
-              </div>
-              {current.id === 'overview' ? (
-                cursor.page === 0 ? (
-                  <>
-                    <p className="book-lead">
-                      人力飛行機は、人がペダルをこぐ力で飛ぶ飛行機です。まずは左の3D表示で、機体全体を眺めてみましょう。大きく横に広がるのが「主翼」、後ろにある小さな翼が「尾翼」です。人が乗る操縦席は、主翼の中央付近の下にあります。
-                    </p>
-                    <p>
-                      機体の前端にあたる「機首」にあるのが、回転して機体を前へ進める「プロペラ」です。この本では、このプロペラの製作を学びます。3D表示ではプロペラに色を付けています。「プロペラ」を選ぶと拡大でき、さらに羽根の一本である「ブレード」へ進めます。
-                    </p>
-                    <h2>ペダルの力は、どうやって前に進む力になるのでしょうか</h2>
-                    <p>
-                      <BookText>
-                        自転車なら、ペダルを踏んだ力を車輪から地面へ伝えて前に進みます。人力飛行機では、その力でプロペラを回し、空気を後ろへ送ります。空気を後ろへ押すと、プロペラも空気から前向きに押されます。これが機体を前へ進める力になります。
-                      </BookText>
-                    </p>
-                    <p>
-                      <BookText>
-                        プロペラの羽根の一本を「ブレード」と呼びます。ブレードは、回転しながら空気に働きかける翼です。この本で追うのは、26代がそのブレードを形にしていった製作記録。形をどう写し、内側をどう組み、二つの面をどう閉じたのかを、写真と動く模型でたどります。
-                      </BookText>
-                    </p>
-                    <p className="book-citations">
-                      <a
-                        href="https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/propellers/"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        プロペラが進む力を生む仕組み · NASA ↗
-                      </a>
-                    </p>
-                    <h2>完成すると、内側は見えなくなる</h2>
-                    <p>
-                      <BookText>
-                        手のひらで包むように、二つの薄い殻を合わせるところを想像してください。この殻が、空気に触れる外形をつくる「外皮」です。26代の記録では、二つの側を
-                        upper（アッパー）と
-                        under（アンダー）と呼び分けます。模型を回すと画面の上下は変わるので、部材についた名前で区別します。
-                      </BookText>
-                    </p>
-                    <p>
-                      <BookText>
-                        殻の内側には、細長い支えや板状の部材が入ります。その名前を今すべて覚える必要はありません。まず確かめたいのは、支えがどの面に接しているか。そして、殻を閉じた後では、その接触を直接見られなくなるということです。
-                      </BookText>
-                    </p>
-                    <p>
-                      <BookText>
-                        左の3D表示で「断面と内部」を選び、外皮を開いてみましょう。薄い殻と、その間に立つ板を見分けてください。これから読む工程は、内側を見られるうちに部材を組み、接する場所を確かめていく順序でもあります。
-                      </BookText>
-                    </p>
-                    {source.data?.stages.web?.practice
-                      .find((p) => p.id === 'web-standing')
-                      ?.media.slice(0, 1)
-                      .map((m) => (
-                        <Photo key={m.filename} media={m} onOpen={setPhoto} figure="図0-1" />
-                      ))}
-                    {source.data?.stages.web?.practice.find((p) => p.id === 'web-standing')
-                      ?.media[0]?.localUrl && (
-                      <>
-                        <p>
-                          <BookText>
-                            図0-1では、外皮の中を長く走る板状の支えを見てください。これが、後の章で「ウェブ」と呼ぶ部材です。横向きに並ぶ板は、作業中の位置と向きを保つ道具――「治具」です。製品に残す支えと、作業後に外す道具を、同じ写真で見分けてみましょう。
-                          </BookText>
-                        </p>
-                      </>
-                    )}
-                    <h2>この本の読み方</h2>
-                    <p>
-                      各節は、これから解きたい疑問から始まります。左の図で動きを追い、右の写真で実物を確かめ、最後に自分の言葉で理由を説明してみてください。章末には、紙などを使って位置や順序を試す練習を用意しています。
-                    </p>
-                    <p>
-                      点線の付いた言葉を押すと、その場で意味を読めます。読み方から探すときは、ページ上部の「ことばを調べる」を使ってください。日付のある記述は現場の記録で、試作・補修の例と、学習のための問いは区別しています。
-                    </p>
-                    <h2>最初の疑問は、形をどう残すか</h2>
-                    <p>
-                      <BookText>
-                        まだ薄い殻も支えもありません。図面にある形を、実際の材料にどう移せばよいのでしょう。第1章は、製品より先に、その形を繰り返し写すための道具――「型」をつくるところから始まります。
-                      </BookText>
-                    </p>
-                    <p>
-                      先輩に確認しなければ決められない値は、そのまま未確定と示します。設計計算、工具の習熟、使用前検査はこの本文だけで完結しません。
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="book-lead">
-                      型で形を決め、外皮をつくり、内側を組んでから閉じる。前の工程でつくったものが、次の工程の出発点になります。
-                    </p>
-                    <ol className="book-roadmap">
-                      {CHAPTERS.slice(1).map((c, i) => (
-                        <li key={c.id}>
-                          <button onClick={() => open(i + 1)}>
-                            <span>{pad(i + 1)}</span>
-                            <div>
-                              <h2>{c.title}</h2>
-                              <p>{CHAPTER_NARRATIVES[c.id].question}</p>
-                            </div>
-                            <ArrowRight size={18} />
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
-                    <h2>作業の前後を残す</h2>
-                    <p>
-                      完成した状態だけでなく、置き方・手元・位置合わせ・迷った点も記録します。写真の説明で判断が分からないときは、実際に作業した人の答えを同じ章へ添えます。
-                    </p>
-                  </>
-                )
-              ) : cursor.page === 0 ? (
-                <>
-                  <section className="book-narrative" data-reading-anchor="intro" tabIndex={-1}>
-                    <h2>{chapterNarrative.title}</h2>
-                    {chapterNarrative.paragraphs.map((paragraph, i) => (
-                      <p key={i} className={i === 0 ? 'book-lead' : undefined}>
-                        <BookText>{paragraph}</BookText>
-                      </p>
-                    ))}
-                    <p className="book-chapter-question">
-                      <BookText>{chapterNarrative.question}</BookText>
-                    </p>
-                  </section>
-                  {current.id === 'flange' && (
-                    <p className="book-reading-order">
-                      この章は2回使います。
-                      <strong>
-                        upperのフランジ → 第4章の内部組立 → この章へ戻ってunderの位置出し・積層
-                      </strong>
-                      の順です。underの位置をウェブ上端から写す記録では、先に実際のウェブが必要になります。
-                    </p>
-                  )}
-                  <div className="book-receive">
-                    <h2>受け取るもの</h2>
-                    <p>
-                      <BookText>{lesson.input}</BookText>
-                    </p>
-                    <h2>この章の終わりにできるもの</h2>
-                    <p>
-                      <BookText>{lesson.output}</BookText>
-                    </p>
-                  </div>
-                  <h2>材料と道具をそろえる</h2>
-                  <p>
-                    作業を始める前に、以下の材料と道具を実物と照合します。数量・品番・配合条件は、今回使う図面と材料仕様で確かめます。
-                  </p>
-                  <ul>
-                    {lesson.tools.map((t) => (
-                      <li key={t}>
-                        <BookText>{t}</BookText>
-                      </li>
-                    ))}
-                  </ul>
-                  <h2>この章で使う言葉</h2>
-                  <p>
-                    材料名や作業の言葉を、ここでも確かめられます。名前を押すと用途や似た言葉との違いを読めます。
-                  </p>
-                  <div className="book-chapter-words">
-                    {BOOK_GLOSSARY.filter((term) => term.chapter === current.id).map((term) => (
-                      <button key={term.id} onClick={() => lookupTerm(term)}>
-                        {term.term}
-                        <span>{term.short}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <h2>作業の順序を見渡す</h2>
-                  <ol className="book-mini-contents">
-                    {lesson.groups.map((g, i) => (
-                      <li key={g.title}>
-                        <button onClick={() => open(cursor.chapter, i + 1)}>
-                          <span>
-                            {cursor.chapter}.{i + 1}
-                          </span>
-                          <div>
-                            <strong>{g.title}</strong>
-                            <p>{g.purpose}</p>
-                          </div>
-                          <ArrowRight size={15} />
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                </>
-              ) : isEnd ? (
-                <>
-                  <section className="book-narrative" data-reading-anchor="intro" tabIndex={-1}>
-                    <h2>章の最初の疑問に戻る</h2>
-                    <p className="book-chapter-question">
-                      <BookText>{chapterNarrative.question}</BookText>
-                    </p>
-                    <p>
-                      <BookText>{chapterNarrative.resolved}</BookText>
-                    </p>
-                  </section>
-                  {current.id === 'web' && (
-                    <p className="book-reading-order">
-                      under側のフランジ位置をまだ決めていない場合は、
-                      <a href="#library/textbook/flange/1">
-                        第3章「underは、実際のウェブ上端から位置を写す」へ戻ります
-                      </a>
-                      。位置出し・積層と接触の確認を終えてから、貼り合わせへ進みます。
-                    </p>
-                  )}
-                  {current.id === 'flange' && (
-                    <div className="book-reading-order">
-                      <p>どちら側を終えたかで、次に開く章が変わります。</p>
-                      <button className="book-action" onClick={() => open(4, 0)}>
-                        upperを終えた → 第4章で内部を組む <ArrowRight size={16} />
-                      </button>
-                      <button className="book-action" onClick={() => open(5, 1)}>
-                        underも終えた → 第5章で仮合わせを確かめる <ArrowRight size={16} />
-                      </button>
-                    </div>
-                  )}
-                  <section className="book-rehearsal">
-                    <span className="book-source-date">章末演習 · 学習用に編集した練習</span>
-                    <h2>{rehearsal.title}</h2>
-                    <p>
-                      <BookText>{rehearsal.setup}</BookText>
-                    </p>
-                    <button
-                      className="book-action"
-                      onClick={() => {
-                        setStep(firstStep(cursor.chapter, cursor.page));
-                        setMode(firstMode(cursor.chapter, cursor.page));
-                        readingPosition.current = window.scrollY;
-                        setLarge(true);
-                      }}
-                    >
-                      演習で使う図を開く <Maximize2 size={16} />
-                    </button>
-                    <ol className="book-actions">
-                      {rehearsal.actions.map((action) => (
-                        <li key={action}>
-                          <BookText>{action}</BookText>
-                        </li>
-                      ))}
-                    </ol>
-                    <details className="book-worked-example">
-                      <summary>手を動かしたら、説明例と比べる</summary>
-                      <p>
-                        <BookText>{rehearsal.explanation}</BookText>
-                      </p>
-                    </details>
-                    <p className="book-observation">
-                      <strong>実物の作業へ進む前に</strong>
-                      <BookText>{rehearsal.remaining}</BookText>
-                    </p>
-                  </section>
-                  <h2>何を確認して渡すか</h2>
-                  <ul className="book-completion-list">
-                    {lesson.finish.map((item) => (
-                      <li key={item}>
-                        <BookText>{item}</BookText>
-                      </li>
-                    ))}
-                  </ul>
-                  <h2>まだ決められない条件</h2>
-                  <p>
-                    次の条件は、ここに収録した記録だけでは確定しません。使用する材料・図面・設備と、担当者の判断を照合します。
-                  </p>
-                  <ul>
-                    {lesson.missing.map((item) => (
-                      <li key={item}>
-                        <BookText>{item}</BookText>
-                      </li>
-                    ))}
-                  </ul>
-                  <h2>{current.id === 'finish' ? 'この先の確認へ' : '次の工程につながること'}</h2>
-                  <p>
-                    <BookText>{chapterNarrative.next}</BookText>
-                  </p>
-                  <h2>次の担当者に伝えること</h2>
-                  {current.id === 'finish' && (
-                    <section className="book-final-exercise">
-                      <h3>本を閉じる前に、実例から3行を書いてみる</h3>
-                      <p>
-                        第5章の「{SECTION_NARRATIVES.join[2].title}
-                        」を開き、前縁の浮きを扱った記録を読み直します。紙に次の3行を書いてから、説明例を開いてください。
-                      </p>
-                      <a className="book-action" href="#library/textbook/join/3">
-                        第5章の補修記録を読み直す ↗
-                      </a>
-                      <ol className="book-actions">
-                        <li>いつ、どの部材の、どこに気になる状態があったか。</li>
-                        <li>記録の文章が伝えることと、写真から自分で指せることを分けて書く。</li>
-                        <li>
-                          次の担当者が作業を決めるために、まだ確認する必要があることを一つ書く。
-                        </li>
-                      </ol>
-                      <details className="book-worked-example">
-                        <summary>3行書いたら、引き継ぎの説明例と比べる</summary>
-                        <p>
-                          <BookText>
-                            ①記録では、脱型後のunderの前縁端に、治具と治具の間で浮きが見つかっています。②文章は追加樹脂とテープによる補修を伝え、写真では短いテープで保持した場所を指せます。③この写真だけでは内部の接着状態や補修の最終合否を判断できないため、確認した方法と結果を担当者に聞く必要があります。
-                          </BookText>
-                        </p>
-                        <p>
-                          自分が行っていない作業を「確認した」と書かず、「記録にある事実」「写真から読めること」「まだ分からないこと」に分けられたかを見直します。
-                        </p>
-                      </details>
-                    </section>
-                  )}
-
-                  <p>
-                    部材の全体写真、確認した位置の拡大、使用した条件、うまくいかなかった点を記録します。未確認の箇所も明記してください。
-                  </p>
-                  <button className="book-action" onClick={() => navigate('capture')}>
-                    <Camera size={17} />
-                    この工程の作業を記録する
-                  </button>
-                </>
-              ) : (
-                <>
-                  <section className="book-narrative" data-reading-anchor="intro" tabIndex={-1}>
-                    <h2>{narrative.title}</h2>
-                    {narrative.paragraphs.map((paragraph, i) => (
-                      <p key={i}>
-                        <BookText>{paragraph}</BookText>
-                      </p>
-                    ))}
-                    {current.id === 'skin' && cursor.page === 2 && (
-                      <>
-                        <p className="book-citations">
-                          <a
-                            href="https://www.gurit.com/wp-content/uploads/2025/11/Core-brochure_v21_web.pdf"
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            芯と面材の役割 · Gurit「Sandwich panel engineering theory」↗
-                          </a>
-                        </p>
-                        <p>
-                          <BookText>
-                            手元に段ボールの切れ端があれば、切り口を見てみましょう。表の紙、間隔を保つ波形の紙、裏の紙を指し分けます。材料や接着方法は外皮と違いますが、薄い面を離してつなぐ形を、身近な物でも探せます。
-                          </BookText>
-                        </p>
-                        <p>
-                          <BookText>
-                            この節のクロスの「±45°」は、根元から先端へ向かう線に対し、繊維が右斜め・左斜めの45度へ走るという読み方です。画面の縦横や型の縁を基準にせず、実物の長手方向を先に指します。
-                          </BookText>
-                        </p>
-                      </>
-                    )}
-                    <p className="book-observe">
-                      <BookText>{narrative.observe}</BookText>
-                    </p>
-                    <button
-                      className="book-action"
-                      onClick={() => {
-                        setStep(narrative.step);
-                        setMode('process');
-                        if (window.matchMedia('(max-width: 767px)').matches) {
-                          readingPosition.current = window.scrollY;
-                          setLarge(true);
-                        }
-                      }}
-                    >
-                      この工程の動きを見る <ArrowLeft size={16} />
-                    </button>
-                    {current.id === 'mold' &&
-                      cursor.page === 2 &&
-                      practices.find((p) => p.id === 'mold-sand-datum')?.media[0]?.localUrl && (
-                        <button
-                          className="book-action"
-                          onClick={() =>
-                            setPhoto(practices.find((p) => p.id === 'mold-sand-datum')!.media[0])
-                          }
-                        >
-                          色分けした練習図を開く <Maximize2 size={16} />
-                        </button>
-                      )}
-                    {current.id === 'skin' && cursor.page === 2 && (
-                      <button className="book-action" onClick={() => setExplanationFigure('core')}>
-                        コアの継ぎ目を比べる図を開く <Maximize2 size={16} />
-                      </button>
-                    )}
-                    {current.id === 'skin' && cursor.page === 1 && (
-                      <button
-                        className="book-action"
-                        onClick={() => setExplanationFigure('transfer')}
-                      >
-                        搬送の図と写真を開く <Maximize2 size={16} />
-                      </button>
-                    )}
-                    {current.id === 'finish' && cursor.page === 2 && (
-                      <button
-                        className="book-action"
-                        onClick={() => setExplanationFigure('masking')}
-                      >
-                        運ぶテープと残すテープの図を開く <Maximize2 size={16} />
-                      </button>
-                    )}
-                    {narrativeRecords.length > 0 && (
-                      <div className="book-narrative-records">
-                        参照する製作記録：
-                        {narrativeRecords.map(({ item, chapter, page, stageId }) => (
-                          <a
-                            key={item.id}
-                            href={`#library/textbook/${stageId}/${page}`}
-                            onClick={(event) => {
-                              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-                                return;
-                              event.preventDefault();
-                              if (chapter !== cursor.chapter || page !== cursor.page)
-                                open(chapter, page);
-                              requestAnimationFrame(() => {
-                                const record = document.getElementById(`book-record-${item.id}`);
-                                record?.scrollIntoView({ block: 'start', behavior: 'instant' });
-                                record?.focus({ preventScroll: true });
-                              });
-                            }}
-                          >
-                            {chapter === cursor.chapter && page === cursor.page
-                              ? 'この節'
-                              : `第${chapter}章 ${chapter}.${page}`}{' '}
-                            · {item.title}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                  {Array.from({ length: group.to - group.from + 1 }, (_, i) => group.from + i).map(
-                    (index) => (
-                      <section
-                        className={`book-step ${step === index ? 'is-current' : ''}`}
-                        key={index}
-                        data-step={index}
-                        data-reading-anchor={`step-${index}`}
-                        tabIndex={-1}
-                      >
-                        <div className="book-step-label">
-                          <span>手順 {pad(index + 1)}</span>
-                          <button
-                            onClick={() => {
-                              setStep(index);
-                              setMode('process');
-                              if (window.matchMedia('(max-width: 767px)').matches) {
-                                readingPosition.current = window.scrollY;
-                                setLarge(true);
-                              }
-                            }}
-                          >
-                            この動きを図で見る <ArrowLeft size={14} />
-                          </button>
-                        </div>
-                        <h2>{PROCESS_STEPS[current.id][index].title}</h2>
-                        {current.id === 'web' && index === 1 && (
-                          <p>
-                            <BookText>
-                              位置を表す r
-                              は、前段の部材の太さ（直径）とは別の記号です。この抜粋には測り始める点が明記されていません。部品の端からの距離と決めつけず、図面の基準点と測る方向を担当者と確かめてから使います。
-                            </BookText>
-                          </p>
-                        )}
-                        <p>
-                          <BookText>{PROCESS_STEPS[current.id][index].detail}</BookText>
-                        </p>
-                        {matched(index).length ? (
-                          matched(index).map((item) => (
-                            <Practice
-                              key={item.id}
-                              item={item}
-                              onOpen={setPhoto}
-                              chapter={cursor.chapter}
-                              figureStart={figureStart(item)}
-                            />
-                          ))
-                        ) : (
-                          <p className="book-source-gap">
-                            この操作の手元写真・具体的な判断は、現時点の収録資料では補えていません。下の確認点を作業者と照合します。
-                          </p>
-                        )}
-                      </section>
-                    ),
-                  )}
-                  {remaining.length > 0 &&
-                    cursor.page === 1 &&
-                    remaining.map((item) => (
-                      <Practice
-                        key={item.id}
-                        item={item}
-                        onOpen={setPhoto}
-                        chapter={cursor.chapter}
-                        figureStart={figureStart(item)}
-                      />
-                    ))}
-                  <section
-                    className="book-understanding"
-                    data-reading-anchor="review"
-                    tabIndex={-1}
-                    key={`${current.id}-${cursor.page}`}
-                  >
-                    <h2>ここまでを、自分の言葉で</h2>
-                    <p>
-                      <BookText>{narrative.think}</BookText>
-                    </p>
-                    <details className="book-worked-example">
-                      <summary>考えたら、説明と照らし合わせる</summary>
-                      <p>
-                        <BookText>{narrative.answer}</BookText>
-                      </p>
-                    </details>
-                    <p className="book-carry">
-                      <BookText>{narrative.carry}</BookText>
-                    </p>
-                  </section>
-                  <section className="book-stop">
-                    <h2>次へ進む前に</h2>
-                    <p>
-                      <BookText>{group.check}</BookText>
-                    </p>
-                    <details>
-                      <summary>この工程で確認が必要な条件</summary>
-                      <ul>
-                        {lesson.missing.map((item) => (
-                          <li key={item}>
-                            <BookText>{item}</BookText>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  </section>
-                </>
-              )}
-              {source.loading && <p role="status">製作写真を読み込んでいます…</p>}
-              {source.error && (
-                <p className="book-source-gap">
-                  製作記録が未接続です。実写真と詳しい観察記録は、資料を接続した環境で読めます。
-                </p>
-              )}
-              <DiaryNotes notes={diaryNotes} />
-              <footer className="book-page-footer">
-                <span>
-                  {pad(leafPage)} <small>/ {totalPages}</small>
-                </span>
-                <button onClick={() => setNotes(true)}>
-                  <StickyNote size={15} />
-                  この章の付箋 {diaryNotes.length + records.length}
-                </button>
-              </footer>
+              <h1 className="book-story-title">一本のブレードができるまで</h1>
+              <p className="book-story-intro">
+                機体の中での役割から、型づくり、積層、組み立て、仕上げまで。本文をスクロールすると、横の図も同じ工程をたどります。
+              </p>
+              {sections}
             </article>
           </div>
-          <div className="book-section-rail">{sectionNavigation}</div>
         </div>
-        <nav className="book-pagination" aria-label="本のページをめくる">
-          <button
-            disabled={leafPage === 1}
-            onClick={() => turn(-1)}
-            aria-label="前のページ"
-            aria-describedby="book-previous-title"
-          >
-            <ArrowLeft size={17} />
-            <span>
-              前のページ<small id="book-previous-title">{previousTitle}</small>
-            </span>
-          </button>
-          <span>
-            {current.title}
-            <small>
-              {cursor.page + 1} / {pageCount}
-            </small>
-          </span>
-          <button
-            disabled={leafPage === totalPages}
-            onClick={() => turn(1)}
-            aria-label="次のページ"
-            aria-describedby="book-next-title"
-          >
-            <span>
-              次のページ<small id="book-next-title">{nextTitle}</small>
-            </span>
-            <ArrowRight size={17} />
-          </button>
-        </nav>
         {lookup && <BookDictionary selection={lookup} select={setLookup} close={closeDictionary} />}
         {searchOpen && (
           <BookSearch
@@ -1379,14 +1430,6 @@ export function TextbookPage() {
               open(chapter, page);
             }}
           />
-        )}
-        {navigationPanel && (
-          <Modal
-            title={navigationPanel === 'process' ? '全体の工程' : 'この工程の目次'}
-            close={() => setNavigationPanel(null)}
-          >
-            {navigationPanel === 'process' ? processNavigation : sectionNavigation}
-          </Modal>
         )}
         {contents && (
           <Modal title="プロペラ製作 目次" close={() => setContents(false)} wide>
@@ -1403,32 +1446,7 @@ export function TextbookPage() {
                 しおりのページへ {CHAPTERS[savedPage.chapter].title}
               </button>
             )}
-            <div className="book-modal-contents">
-              {CHAPTERS.map((c, i) => (
-                <section key={c.id}>
-                  <button
-                    onClick={() => open(i)}
-                    aria-current={cursor.chapter === i && cursor.page === 0 ? 'page' : undefined}
-                  >
-                    <span>{pad(i)}</span>
-                    <strong>{c.title}</strong>
-                    <ArrowRight size={17} />
-                  </button>
-                  {Array.from({ length: pagesFor(c.id) - 1 }, (_, j) => j + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => open(i, page)}
-                      className="book-subchapter"
-                      aria-current={
-                        cursor.chapter === i && cursor.page === page ? 'page' : undefined
-                      }
-                    >
-                      {i}.{page}　{pageName(i, page)}
-                    </button>
-                  ))}
-                </section>
-              ))}
-            </div>
+            {contentsNavigation}
             <a href="#library/wiki/home">これまでのWikiを開く</a> ·{' '}
             <a href="#library/records">記録から作ったWiki</a>
           </Modal>
@@ -1485,8 +1503,8 @@ export function TextbookPage() {
           </Modal>
         )}
         {notes && (
-          <Modal title={`${current.title}の付箋`} close={() => setNotes(false)} wide>
-            <DiaryNotes notes={diaryNotes} />
+          <Modal title={`${CHAPTERS[notesChapter].title}の付箋`} close={() => setNotes(false)} wide>
+            <DiaryNotes notes={diaryNotesFor(CHAPTERS[notesChapter].id)} />
             <h2>追加された作業記録</h2>
             {records.length ? (
               records.map((record) => (

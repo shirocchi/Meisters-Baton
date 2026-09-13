@@ -47,7 +47,7 @@ async function mockSources(page: Page) {
 }
 
 const steps = (page: Page) => page.getByLabel('工程図の手順', { exact: true });
-const chapterNav = (page: Page) => page.getByRole('navigation', { name: '教科書の章' });
+const chapterNav = (page: Page) => page.getByRole('navigation', { name: '教材の目次' });
 const pagination = (page: Page) => page.getByRole('navigation', { name: '本のページをめくる' });
 
 test.use({ launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } });
@@ -63,8 +63,8 @@ test('introduction and chapter deep links connect the reading position to the re
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/#library');
   await expect(page.getByRole('heading', { name: 'つくるものを知る', exact: true })).toBeVisible();
-  await expect(chapterNav(page).getByRole('button')).toHaveCount(7);
-  await expect(page.getByRole('heading', { name: 'この本の読み方', exact: true })).toBeVisible();
+  await expect(chapterNav(page).locator('.book-toc-chapter')).toHaveCount(7);
+  await expect(page.getByRole('heading', { name: 'この教材の読み方', exact: true })).toBeVisible();
   await expect(page.locator('.book-visual canvas')).toBeVisible();
 
   await page.goto('/#library/textbook/skin/2');
@@ -74,7 +74,7 @@ test('introduction and chapter deep links connect the reading position to the re
   await expect(steps(page)).toHaveValue('2');
   await expect(page.locator('.book-look strong')).toHaveText('バルサのコアを位置決めする');
   await page
-    .locator('.book-step[data-step="3"]')
+    .locator('#book-section-skin-2 .book-step[data-step="3"]')
     .evaluate((section) => section.scrollIntoView({ block: 'start' }));
   await expect(steps(page)).toHaveValue('3');
   await expect(page.locator('.book-look strong')).toHaveText('内側のCFRPを±45°で重ねる');
@@ -150,35 +150,6 @@ test('a dated observation retains its source and photograph when enlarged', asyn
   await expect(page).toHaveURL(/#library\/textbook\/skin\/2$/);
 });
 
-test('page turns cross chapters of different lengths and browser back restores the visible page', async ({
-  page,
-}) => {
-  await page.goto('/#library/textbook/flange/0');
-  await pagination(page).getByRole('button', { name: '前のページ', exact: true }).click();
-  await expect(page).toHaveURL(/#library\/textbook\/skin\/5$/);
-  await expect(
-    page.getByRole('heading', { name: '章末演習・次の工程へ渡す', exact: true }),
-  ).toBeVisible();
-  await expect(page.locator('.book-running')).toContainText('第2章');
-  await pagination(page).getByRole('button', { name: '次のページ', exact: true }).click();
-  await expect(page).toHaveURL(/#library\/textbook\/flange\/0$/);
-  await expect(page.getByRole('heading', { name: 'この章を読む前に', exact: true })).toBeVisible();
-  await page.goBack();
-  await expect(page).toHaveURL(/#library\/textbook\/skin\/5$/);
-  await expect(
-    page.getByRole('heading', { name: '章末演習・次の工程へ渡す', exact: true }),
-  ).toBeVisible();
-  await expect(chapterNav(page).getByRole('button', { name: /02 外皮を積層する/ })).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
-  await page.reload();
-  await expect(page.locator('.book-running')).toContainText('第2章');
-  await expect(
-    page.getByRole('heading', { name: '章末演習・次の工程へ渡す', exact: true }),
-  ).toBeVisible();
-});
-
 test('a bookmark survives reload and returns to its chapter and section from the contents', async ({
   page,
 }) => {
@@ -193,6 +164,9 @@ test('a bookmark survives reload and returns to its chapter and section from the
   ).toHaveAttribute('aria-pressed', 'true');
   await chapterNav(page)
     .getByRole('button', { name: /01 型をつくる/ })
+    .click();
+  await chapterNav(page)
+    .getByRole('button', { name: /^1\.0 / })
     .click();
   await page.getByRole('button', { name: '目次', exact: true }).click();
   await page
@@ -217,7 +191,7 @@ test('phone reading opens the matching visual and returns to the same text witho
     );
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  const textStep = page.locator('.book-step[data-step="3"]');
+  const textStep = page.locator('#book-section-skin-2 .book-step[data-step="3"]');
   await textStep.getByRole('button', { name: 'この動きを図で見る', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '工程を目で見る', exact: true });
   await expect(dialog).toBeVisible();
@@ -240,14 +214,14 @@ test('book controls have accessible names and readable contrast', async ({ page 
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();
   expect(result.violations).toEqual([]);
-  await page.screenshot({ path: testInfo.outputPath('textbook-spread.png'), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('textbook-spread.png'), fullPage: false });
 });
 
 test('a chapter ends with a paper rehearsal and an explanation to reveal after trying it', async ({
   page,
 }) => {
   await page.goto('/#library/textbook/skin/5');
-  const rehearsal = page.locator('.book-rehearsal');
+  const rehearsal = page.locator('#book-section-skin-5 .book-rehearsal');
   await expect(rehearsal).toContainText('章末演習 · 学習用に編集した練習');
   await expect(
     rehearsal.getByRole('heading', { name: '紙を重ね、外皮に残る3層を取り出す', exact: true }),
@@ -272,7 +246,9 @@ test('a chapter ends with a paper rehearsal and an explanation to reveal after t
     '紙を重ねても、しわや浮きの合否までは判断できません',
   );
   await expect(
-    page.getByRole('button', { name: 'この工程の作業を記録する', exact: true }),
+    page
+      .locator('#book-section-skin-5')
+      .getByRole('button', { name: 'この工程の作業を記録する', exact: true }),
   ).toBeVisible();
 });
 
@@ -280,7 +256,7 @@ test('an internal reference returns to the earlier chapter at its heading, witho
   page,
 }) => {
   await page.goto('/#library/textbook/web/4');
-  await page.locator('.book-page-footer').scrollIntoViewIfNeeded();
+  await page.locator('#book-section-web-4 .book-page-footer').scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(600);
   await page
     .getByRole('link', { name: '第3章「underは、実際のウェブ上端から位置を写す」へ戻ります' })
@@ -289,5 +265,5 @@ test('an internal reference returns to the earlier chapter at its heading, witho
   await expect(
     page.getByRole('heading', { name: '対象と位置を確認する', exact: true }),
   ).toBeInViewport();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.locator('#book-section-flange-1 .book-section-title')).toBeInViewport();
 });

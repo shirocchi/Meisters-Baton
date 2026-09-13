@@ -78,9 +78,10 @@ test('opening the second skin and selecting parts makes internal relationships i
   ).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: '工程アニメーション', exact: true }).click();
   await expect(page.getByLabel('工程図の手順', { exact: true })).toHaveValue('0');
-  await page.getByRole('button', { name: /人力飛行機のどこを作っている/ }).click();
+  await page.getByRole('button', { name: '機体と部材を3Dで見る', exact: true }).click();
+  await levels(page).getByRole('button', { name: '1 機体全体', exact: true }).click();
   await expect(model(page)).toHaveAttribute('data-aircraft-view', 'aircraft');
-  await expect(page.getByRole('article').getByRole('heading', { level: 1 })).toHaveText(
+  await expect(page.locator('#book-section-web-1 .book-section-title')).toHaveText(
     'upperを支え、桁を固定する',
   );
 });
@@ -91,6 +92,7 @@ test('a narrow screen keeps the model controls usable and respects reduced motio
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/#library/textbook/overview/0');
+  await page.getByRole('button', { name: 'ビジュアルを拡大', exact: true }).click();
   await levels(page).getByRole('button', { name: '2 プロペラ', exact: true }).click();
   await model(page).getByRole('button', { name: 'プロペラの回転を見る', exact: true }).click();
   await expect(
