@@ -40,13 +40,13 @@ export async function api<T>(
   if (token && authOrigin !== origin(settings))
     throw new Error('ログインしたサーバーと接続先が異なります。接続し直してください。');
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options.timeout ?? 150000);
+  const timer = setTimeout(() => controller.abort(), options.timeout ?? 360000);
   try {
     const res = await fetch(`${settings.apiBaseUrl.replace(/\/$/, '')}${path}`, {
       method: options.method ?? 'GET',
       headers: {
         ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}`, 'X-Baton-Team': auth!.user.teamId } : {}),
       },
       body:
         options.body === undefined

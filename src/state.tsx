@@ -81,8 +81,10 @@ export function BatonProvider({ children }: { children: ReactNode }) {
           if (!active) return;
           setAuthSession(null);
           updateAuth(null);
-          setNotice(
-            cause instanceof Error ? cause.message : 'ログイン状態を確認できませんでした。',
+          toast(
+            cause instanceof Error && cause.message !== '[object Object]'
+              ? cause.message
+              : 'ログイン状態を確認できませんでした。',
           );
         });
     };

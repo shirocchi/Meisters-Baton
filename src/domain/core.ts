@@ -7,6 +7,7 @@ import type {
   SearchResult,
   TeamData,
 } from './types';
+import { knowledgeAnswers } from './interview';
 
 export function makeId(prefix = 'id'): string {
   const cryptoApi = globalThis.crypto;
@@ -140,13 +141,7 @@ export function validateEvidence(evidence: Evidence, recordings: Recording[]): s
 }
 
 export function draftArticle(recording: Recording): Article {
-  const latestByQuestion = new Map<string, Recording['answers'][number]>();
-  for (const answer of recording.answers) {
-    const previous = latestByQuestion.get(answer.questionId);
-    if (!previous || Date.parse(answer.createdAt) >= Date.parse(previous.createdAt))
-      latestByQuestion.set(answer.questionId, answer);
-  }
-  const answers = [...latestByQuestion.values()].filter((answer) => answer.text.trim());
+  const answers = knowledgeAnswers(recording);
   if (!answers.length)
     throw new Error('下書きを作るには、まず経験者の回答を1件以上残してください。');
   const now = new Date().toISOString();

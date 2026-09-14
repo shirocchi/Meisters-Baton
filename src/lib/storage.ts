@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Settings, TeamData } from '../domain/types';
 import { makeId } from '../domain/core';
 import { parseTeamData } from '../domain/validation';
+import { deleteProcessVideos } from './processVideoStorage';
 
 interface BatonDatabase extends DBSchema {
   state: { key: 'teamData' | 'settings'; value: TeamData | Settings };
@@ -120,6 +121,7 @@ export async function deleteAnswerDraft(recordingId: string, questionId: string)
   await db.delete('answerDrafts', `${recordingId}:${questionId}`);
 }
 export async function deleteRecordingDrafts(recordingId: string): Promise<void> {
+  await deleteProcessVideos(recordingId);
   const db = await getDatabase();
   const tx = db.transaction('answerDrafts', 'readwrite');
   for (const key of await tx.store.getAllKeys())
@@ -217,6 +219,7 @@ export function importBackup(json: string, current?: TeamData): TeamData {
 
 /** Explicit local reset, including media. Call only from a confirmed user action. */
 export async function clearLocalData(): Promise<void> {
+  await deleteProcessVideos();
   const db = await getDatabase();
   const tx = db.transaction(['state', 'media', 'answerDrafts'], 'readwrite');
   await Promise.all([

@@ -642,6 +642,41 @@ describe('private media', () => {
 });
 
 describe('AI boundary using an injected provider (no live API calls)', () => {
+  it('authenticates follow-ups and returns a validated answer-linked question', async () => {
+    const source = recording();
+    source.analysis!.mode = 'ai';
+    const provider = vi.fn(async () => ({
+      outcome: 'followup',
+      message: '確認する状態を具体化します。',
+      question: {
+        text: '引っかかりがあったときは、次に何を確認しましたか？',
+        reason: '進めず確認する行動を残すため。',
+        kind: 'judgment',
+        answerQuote: '引っかかりがない',
+      },
+    }));
+    const instance = server({ aiProvider: provider });
+    expect(
+      (
+        await request(instance.app)
+          .post('/api/ai/followup')
+          .send({ recording: source, questionId: 'q-1' })
+      ).status,
+    ).toBe(401);
+    expect(provider).not.toHaveBeenCalled();
+    const owner = await register(instance);
+    const response = await request(instance.app)
+      .post('/api/ai/followup')
+      .set('Authorization', bearer(owner))
+      .send({ recording: source, questionId: 'q-1' });
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.question).toMatchObject({
+      followUpOf: 'q-1',
+      basedOnAnswerId: 'a-1',
+      segmentId: 'seg-1',
+    });
+    expect(response.body.review.answerId).toBe('a-1');
+  });
   it('supplies timestamped sample frames and labels the observation limits', async () => {
     const source = recording();
     source.frames = [

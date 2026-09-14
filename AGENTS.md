@@ -31,6 +31,6 @@ Desktop-first application for capturing craft knowledge through recorded work, q
 
 ## Textbook source of truth
 
-- Develop the textbook on `shirocchi/Meisters-Baton:codex/growing-textbook` and review it through `kob952/Meisters-Baton#22` until integration into upstream main. Keep textbook prose, UI, 3D, diary notes, and their checks together.
+- Develop the textbook on `shirocchi/Meisters-Baton:codex/growing-textbook` and review it through `kob952/Meisters-Baton#29` until integration into upstream main. Keep textbook prose, UI, 3D, diary notes, and their checks together.
 - Edit the existing textbook worktree. Do not create or edit a separate hosting copy as another source of truth. Deployment artifacts must come from an identified Git commit.
 - The earlier chatgpt.site preview is a frozen snapshot as of 2026-09-13. Do not resume updating it unless the user explicitly requests that. Track the current preview and review instructions in the same pull request and `docs/textbook-review.md`.

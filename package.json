@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "start": "tsx server/index.ts",
+    "start:laptop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-laptop.ps1",
     "mobile:sync": "npm run build && cap sync",
     "mobile:android": "cap open android",
     "mobile:ios": "cap open ios",
@@ -23,6 +24,7 @@
     "discord:archive": "node scripts/discord-archive.mjs",
     "discord:share": "node scripts/build-discord-share.mjs",
     "wiki:propeller": "node scripts/build-propeller-wiki.mjs",
+    "wiki:context": "tsx scripts/export-process-video-context.ts",
     "format": "prettier --write src server tests scripts *.ts *.json *.html .github docs README.md AGENTS.md",
     "format:check": "prettier --check src server tests scripts *.ts *.json *.html .github docs README.md AGENTS.md",
     "test:offline": "tsx scripts/offline-qa.mjs"

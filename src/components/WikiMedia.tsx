@@ -14,6 +14,9 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
   const [error, setError] = useState('');
   const [requested, setRequested] = useState(false);
   const holder = useRef<HTMLSpanElement>(null);
+  const video = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -31,8 +34,19 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
     if (!auth || !requested) return;
     let live = true,
       object = '';
+    setReady(false);
+    setError('');
     void downloadTeamMedia(auth, media.remotePath)
-      .then((blob) => {
+      .then(async (blob) => {
+        if (media.processVideo) {
+          if (blob.size !== media.bytes) throw Error('掲載された動画の容量が一致しません。');
+          const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+          const hash = Array.from(new Uint8Array(digest), (n) =>
+            n.toString(16).padStart(2, '0'),
+          ).join('');
+          if (hash !== media.processVideo.sha256)
+            throw Error('掲載された動画の内容が一致しません。');
+        }
         if (live) {
           object = URL.createObjectURL(blob);
           setUrl(object);
@@ -51,7 +65,19 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
     media.type.startsWith('image/') ? (
       <img src={url} alt={media.name} />
     ) : (
-      <video src={url} controls playsInline preload="metadata" aria-label={media.name} />
+      <video
+        ref={video}
+        src={url}
+        controls
+        playsInline
+        preload="metadata"
+        aria-label={media.name}
+        onLoadedMetadata={() => setReady(true)}
+        onPlay={() => {
+          if (media.processVideo) window.dispatchEvent(new Event('baton-process-video-focus'));
+        }}
+        onError={() => setError('動画を再生できませんでした。')}
+      />
     )
   ) : null;
   return (
@@ -73,6 +99,54 @@ export function WorkshopMediaView({ media }: { media: WorkshopMedia }) {
           >
             やり直す
           </button>
+        </span>
+      )}
+      {media.processVideo && (
+        <span className="process-video-cues">
+          <span>説明用の概念図 · 場面を選んで確認</span>
+          {media.processVideo.cues.map((cue, index) => (
+            <button
+              className="button"
+              key={index}
+              disabled={!ready}
+              onClick={() => {
+                if (video.current) {
+                  window.dispatchEvent(new Event('baton-process-video-focus'));
+                  video.current.pause();
+                  video.current.currentTime = Math.min(cue.start, video.current.duration);
+                }
+              }}
+            >
+              {formatTime(cue.start)} {cue.label}
+            </button>
+          ))}
+        </span>
+      )}
+      {media.processVideo && (
+        <span className="process-video-sources">
+          <button
+            className="button"
+            aria-expanded={showSources}
+            onClick={() => setShowSources(!showSources)}
+          >
+            動画の出典と参照版を確認
+          </button>
+          {showSources && (
+            <span role="list">
+              {media.processVideo.sources.map((source) => (
+                <span role="listitem" key={source.id}>
+                  {/^#\/?(?:library\/wiki\/|library\/|interview\/|recording\/|evidence\/)[\w%./:-]+$/.test(
+                    source.route,
+                  ) ? (
+                    <a href={source.route}>{source.title}</a>
+                  ) : (
+                    source.title
+                  )}
+                  <small> 参照版 {source.sha256.slice(0, 12)}</small>
+                </span>
+              ))}
+            </span>
+          )}
         </span>
       )}
     </span>

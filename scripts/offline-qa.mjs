@@ -109,6 +109,9 @@ try {
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('.offline-banner')).toContainText('オフライン');
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  // Resume at the next unanswered question; saved answers remain available by selecting them.
+  await expect(page.getByRole('textbox', { name: 'あなたの言葉で', exact: true })).toHaveValue('');
+  await page.getByRole('button', { name: '質問1', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'あなたの言葉で', exact: true })).toHaveValue(
     firstAnswer,
   );

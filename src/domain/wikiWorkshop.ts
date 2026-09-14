@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import type { Recording } from './types';
+import { knowledgeAnswers, latestAnswer, isCurrentQuestion } from './interview';
 import type { WikiPage } from './growiWiki';
+import { processVideoAttachmentSchema } from './processVideo';
 
 export const workshopMediaSchema = z.object({
   id: z.string(),
@@ -8,6 +10,7 @@ export const workshopMediaSchema = z.object({
   type: z.string(),
   bytes: z.number(),
   remotePath: z.string(),
+  processVideo: processVideoAttachmentSchema.optional(),
 });
 export type WorkshopMedia = z.infer<typeof workshopMediaSchema>;
 export interface WikiEvent {
@@ -40,9 +43,9 @@ export function wikiSections(body: string): WikiSection[] {
   let generated = false;
   let offset = 0;
   for (const line of body.split('\n')) {
-    if (line.startsWith('<!-- baton-record:')) generated = true;
+    if (/^<!-- baton-(record|video):/.test(line)) generated = true;
     const isGenerated = generated;
-    if (line.startsWith('<!-- /baton-record:')) generated = false;
+    if (/^<!-- \/baton-(record|video):/.test(line)) generated = false;
     if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
     const match = !fenced && !isGenerated && /^(#{1,4})\s+(.+)$/.exec(line);
     if (match)
@@ -186,7 +189,7 @@ export function evidenceBody(r: Recording) {
         `> ${escape(segment.observation)}`,
         ``,
       );
-  for (const answer of r.answers) {
+  for (const answer of knowledgeAnswers(r)) {
     const question = r.analysis?.questions.find((q) => q.id === answer.questionId);
     lines.push(
       `**${escape(question?.text ?? '作業者の判断')}**`,
@@ -194,6 +197,19 @@ export function evidenceBody(r: Recording) {
       `回答：${escape(answer.author)}`,
       ``,
     );
+  }
+  for (const question of r.analysis?.questions ?? []) {
+    if (!isCurrentQuestion(r, question)) continue;
+    const answer = latestAnswer(r, question.id);
+    const outcome =
+      question.skipped ??
+      (question.review?.answerId === answer?.id ? question.review?.outcome : undefined);
+    if (outcome === 'unknown' || outcome === 'not_applicable')
+      lines.push(
+        `**${outcome === 'unknown' ? '未確認' : '今回は該当なし'}：${escape(question.text)}**`,
+        ...(answer ? [`> ${escape(answer.text)}`] : []),
+        ``,
+      );
   }
   lines.push(`[元の記録と映像を確認](#evidence/${encodeURIComponent(r.id)})`, ``);
   return lines.join('\n');

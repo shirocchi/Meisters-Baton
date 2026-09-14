@@ -311,6 +311,13 @@ export function PropellerMonitor({
       /* UI preference only. */
     }
   }, [minimized]);
+  useEffect(() => {
+    const focusVideo = () => {
+      if (window.matchMedia('(max-width: 900px)').matches) setMinimized(true);
+    };
+    window.addEventListener('baton-process-video-focus', focusVideo);
+    return () => window.removeEventListener('baton-process-video-focus', focusVideo);
+  }, []);
   const [playing, setPlaying] = useState(
     () => !matchMedia('(prefers-reduced-motion: reduce)').matches,
   );

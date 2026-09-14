@@ -12,10 +12,10 @@ GitHub Pagesは同じ `codex/growing-textbook` ブランチのコミットから
 
 ## 作業と共有の正本
 
-教材の変更は [shirocchi/Meisters-Baton の `codex/growing-textbook`](https://github.com/shirocchi/Meisters-Baton/tree/codex/growing-textbook) に集約し、[PR #22](https://github.com/kob952/Meisters-Baton/pull/22) でレビューします。本文、3D、UI、付箋、検証結果を同じブランチで管理します。
+教材の変更は [shirocchi/Meisters-Baton の `codex/growing-textbook`](https://github.com/shirocchi/Meisters-Baton/tree/codex/growing-textbook) に集約し、[PR #29](https://github.com/kob952/Meisters-Baton/pull/29) でレビューします。本文、3D、UI、付箋、検証結果を同じブランチで管理します。
 
 - 教材の編集はこのブランチの作業ツリーで行い、コミットしてpushします。公開用コピーを別の編集場所にしません。
-- 共有する変更内容と指摘はPR #22にまとめます。承認後、上流の `main` へ取り込みます。
+- 共有する変更内容と指摘はPR #29にまとめます。承認後、上流の `main` へ取り込みます。
 - プレビューはGit上のコミットから生成し、確認URLはPRに記載します。Vercelは現在、kob側プロジェクトでfork作者の承認待ちです。
 - 以前の `chatgpt.site` 共有版は2026年9月13日時点のスナップショットとして残し、更新先には使いません。最新の共有先は上記のGitHub Pagesです。
 
@@ -63,4 +63,4 @@ npm run dev -- --port 5182
 
 この教材は製作記録と学習用の説明を組み合わせたドラフトです。3Dは位置関係を示す説明形状であり、製作寸法や合否を判断するCADではありません。未確定の材料条件や製作時の判断は本文に残しています。
 
-開始・最終同期基点は `b0cb38a26d0f3cb05c49f71a34f4d84b53400d6a`。独立した必須依存PRはありません。既存の年間工程デモPRとは工程図などに重なる部分があるため、取り込み順はレビュー時に確認します。
+開始・最終同期基点は `d37694c3c5bc68393d32b9216c548865e9dfdf38`。独立した必須依存PRはありません。既存の年間工程デモPRとは工程図などに重なる部分があるため、取り込み順はレビュー時に確認します。
