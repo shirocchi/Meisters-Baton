@@ -12,6 +12,7 @@ import {
   type WikiConnection,
 } from '../src/domain/processVideo';
 import { buildContext, createReader } from './wikiContext';
+import { processVideoRecordingFingerprint } from '../src/domain/processVideoWiki';
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 const inputSchema = z.discriminatedUnion('action', [
@@ -199,6 +200,7 @@ export function processVideoHandler(options: {
         id: randomUUID(),
         createdAt: new Date().toISOString(),
         recordingId: input.recording.id,
+        recordingFingerprint: await processVideoRecordingFingerprint(req.body.recording),
         teamId: input.teamId,
         skillSha256: sha256(skill),
         status: 'storyboard-draft',

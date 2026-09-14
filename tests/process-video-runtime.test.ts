@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import express, { type ErrorRequestHandler } from 'express';
 import request from 'supertest';
 import { processVideoHandler } from '../server/processVideo';
+import { videoPlan, videoRecording } from './helpers/processVideoFixture';
+import { processVideoRecordingFingerprint } from '../src/domain/processVideoWiki';
 import {
   processVideoPlanIssue,
   processVideoPlanSchema,
@@ -71,6 +73,18 @@ const fetcher = vi.fn(async (url: string | URL | Request) => {
   return new Response(JSON.stringify(body));
 }) as unknown as typeof fetch;
 describe('production-JWT runtime boundary (mock auth server, not a live JWT test)', () => {
+  it('returns a fingerprint of the submitted evidence with validated generated output', async () => {
+    const record = { ...videoRecording, title: '  外皮の試験  ' };
+    const response = await request(app(fetcher, vi.fn(async () => videoPlan)))
+      .post('/api/process-video')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ action: 'run', query: '外皮', teamId, consent: true, recording: record });
+    expect(response.status).toBe(200);
+    expect(response.body.recordingFingerprint).toBe(await processVideoRecordingFingerprint(record));
+    expect(
+      response.body.sources.some((source: { id: string }) => source.id === 'recording:note'),
+    ).toBe(true);
+  });
   it('does not access Supabase or model without bearer authentication', async () => {
     const network = vi.fn();
     const model = vi.fn();

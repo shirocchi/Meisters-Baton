@@ -96,6 +96,7 @@ export interface ProcessVideoRun {
   id: string;
   createdAt: string;
   recordingId: string;
+  recordingFingerprint?: string;
   teamId: string;
   skillSha256: string;
   status: 'storyboard-draft';
@@ -103,3 +104,45 @@ export interface ProcessVideoRun {
   sources: { id: string; title: string; route: string; sha256: string }[];
   limitations: string[];
 }
+
+export const processVideoAttachmentSchema = z
+  .object({
+    runId: z.string().min(1),
+    recordingId: z.string().min(1),
+    recordingFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    duration: z.number().positive().max(180),
+    status: z.literal('illustration'),
+    sources: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        route: z.string(),
+        sha256: z.string(),
+      }),
+    ),
+    cues: z
+      .array(
+        z.object({
+          label: z.string(),
+          start: z.number().nonnegative(),
+          end: z.number().positive(),
+          sourceIds: z.array(z.string()).min(1),
+        }),
+      )
+      .min(1)
+      .max(12),
+  })
+  .superRefine((value, ctx) => {
+    let end = 0;
+    for (const cue of value.cues) {
+      if (
+        cue.start < end ||
+        cue.start >= cue.end ||
+        cue.end > value.duration ||
+        cue.sourceIds.some((id) => !value.sources.some((source) => source.id === id))
+      )
+        ctx.addIssue({ code: 'custom', message: '動画の場面時刻または出典が不正です。' });
+      end = cue.end;
+    }
+  });

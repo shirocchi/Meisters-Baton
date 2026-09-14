@@ -5,6 +5,7 @@ export interface SavedProcessVideo {
   run: ProcessVideoRun;
   mp4?: Blob;
   sha256?: string;
+  uploaded?: { teamId: string; sha256: string; remotePath: string };
 }
 async function database() {
   return openDB('meisters-baton-process-video', 1, {

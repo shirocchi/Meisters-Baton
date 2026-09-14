@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Recording } from './types';
 import { knowledgeAnswers, latestAnswer, isCurrentQuestion } from './interview';
 import type { WikiPage } from './growiWiki';
+import { processVideoAttachmentSchema } from './processVideo';
 
 export const workshopMediaSchema = z.object({
   id: z.string(),
@@ -9,6 +10,7 @@ export const workshopMediaSchema = z.object({
   type: z.string(),
   bytes: z.number(),
   remotePath: z.string(),
+  processVideo: processVideoAttachmentSchema.optional(),
 });
 export type WorkshopMedia = z.infer<typeof workshopMediaSchema>;
 export interface WikiEvent {
@@ -41,9 +43,9 @@ export function wikiSections(body: string): WikiSection[] {
   let generated = false;
   let offset = 0;
   for (const line of body.split('\n')) {
-    if (line.startsWith('<!-- baton-record:')) generated = true;
+    if (/^<!-- baton-(record|video):/.test(line)) generated = true;
     const isGenerated = generated;
-    if (line.startsWith('<!-- /baton-record:')) generated = false;
+    if (/^<!-- \/baton-(record|video):/.test(line)) generated = false;
     if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
     const match = !fenced && !isGenerated && /^(#{1,4})\s+(.+)$/.exec(line);
     if (match)

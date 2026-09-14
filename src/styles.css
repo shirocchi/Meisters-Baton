@@ -2843,3 +2843,46 @@ main {
   scroll-margin-top: 112px;
   scroll-margin-bottom: 100px;
 }
+/* Generated explanations stay beside the original Wiki process text. */
+.process-video-publication {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--line, #c9d9d4);
+  border-radius: 12px;
+}
+.process-video-publication label {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.process-video-publication select,
+.process-video-publication textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.process-video-publication-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface, #fff);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.process-video-cues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.process-video-cues > span {
+  flex-basis: 100%;
+}
+.process-video-cues button {
+  min-height: 44px;
+  white-space: normal;
+  text-align: left;
+}
+.process-video-sources,
+.process-video-sources [role='listitem'] {
+  display: block;
+}

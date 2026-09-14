@@ -4,6 +4,7 @@ import type { Recording } from '../domain/types';
 import type { ProcessVideoRun, WikiConnection } from '../domain/processVideo';
 import { api, assertAuthSession } from '../lib/api';
 import { canRenderMp4, renderProcessMp4 } from '../lib/processVideoRender';
+import { ProcessVideoPublish } from './ProcessVideoPublish';
 import {
   loadProcessVideos,
   saveProcessVideo,
@@ -282,6 +283,13 @@ export function ProcessVideo({ record }: { record: Recording }) {
                 aria-label="保存した3D解説動画"
               />
               <p>MP4をこの端末に保存済み。人による製法・理解の確認は未完了です。</p>
+              {saved?.mp4 && (
+                <ProcessVideoPublish
+                  key={`${auth.user.id}:${saved.run.id}`}
+                  record={record}
+                  video={saved}
+                />
+              )}
             </>
           )}
           {error && <p role="alert">{error}</p>}
