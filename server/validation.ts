@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { TeamData, Recording, Claim } from '../src/domain/types.js';
+import { interviewIssue } from '../src/domain/interview.js';
 
 const id = z
   .string()
@@ -20,7 +21,25 @@ const segment = z
   })
   .strict();
 const question = z
-  .object({ id, segmentId: id, text: short, reason: z.string().max(2000), kind })
+  .object({
+    id,
+    segmentId: id,
+    text: short,
+    reason: z.string().max(2000),
+    kind,
+    followUpOf: id.optional(),
+    basedOnAnswerId: id.optional(),
+    answerQuote: text.optional(),
+    skipped: z.enum(['unknown', 'not_applicable']).optional(),
+    review: z
+      .object({
+        answerId: id,
+        outcome: z.enum(['followup', 'enough', 'unknown', 'not_applicable']),
+        message: z.string().max(2000),
+      })
+      .strict()
+      .optional(),
+  })
   .strict();
 export const analysisSchema = z
   .object({
@@ -194,6 +213,8 @@ export function uniqueIds(items: { id: string }[]): boolean {
   return new Set(items.map((v) => v.id)).size === items.length;
 }
 export function recordingIssue(r: Recording): string | undefined {
+  const interviewError = interviewIssue(r);
+  if (interviewError) return interviewError;
   if (!uniqueIds(r.frames) || !uniqueIds(r.answers)) return '記録内のIDが重複しています。';
   if (r.frames.some((f) => f.time > r.duration)) return '画像の時刻が動画の長さを超えています。';
   if (r.analysis) {

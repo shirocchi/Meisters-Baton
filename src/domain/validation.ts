@@ -1,5 +1,6 @@
 import type { TeamData } from './types';
 import { validateEvidence } from './core';
+import { interviewIssue } from './interview';
 
 type Rule = (value: unknown, path: string, errors: string[]) => void;
 const text =
@@ -113,6 +114,17 @@ const analysis = object({
       text: text(2000, true),
       reason: text(2000),
       kind: oneOf('step', 'judgment', 'warning'),
+      followUpOf: optional(id),
+      basedOnAnswerId: optional(id),
+      answerQuote: optional(text()),
+      skipped: optional(oneOf('unknown', 'not_applicable')),
+      review: optional(
+        object({
+          answerId: id,
+          outcome: oneOf('followup', 'enough', 'unknown', 'not_applicable'),
+          message: text(2000),
+        }),
+      ),
     }),
     1000,
   ),
@@ -221,6 +233,8 @@ export function validateTeamData(input: unknown): string[] {
   unique(data.requests, 'リクエスト');
   unique(data.activity, '活動');
   for (const recording of data.recordings) {
+    const interviewError = interviewIssue(recording);
+    if (interviewError) errors.push(interviewError);
     unique(recording.frames, 'フレーム');
     unique(recording.answers, '回答');
     if (recording.analysis) {

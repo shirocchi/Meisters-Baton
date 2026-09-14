@@ -19,6 +19,20 @@ export interface InterviewQuestion {
   text: string;
   reason: string;
   kind: ClaimKind;
+  followUpOf?: string;
+  basedOnAnswerId?: string;
+  answerQuote?: string;
+  skipped?: 'unknown' | 'not_applicable';
+  review?: InterviewReview;
+}
+export interface InterviewReview {
+  answerId: string;
+  outcome: 'followup' | 'enough' | 'unknown' | 'not_applicable';
+  message: string;
+}
+export interface InterviewTurn {
+  question: InterviewQuestion | null;
+  review: InterviewReview;
 }
 export interface ExpertAnswer {
   id: string;

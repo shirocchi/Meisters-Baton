@@ -1,7 +1,23 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { Analysis, Article, Claim, Recording, SearchAnswer } from '../src/domain/types.js';
+import type {
+  Analysis,
+  Article,
+  Claim,
+  Recording,
+  SearchAnswer,
+  InterviewTurn,
+} from '../src/domain/types.js';
 import { analysisSchema, claimEvidenceIssue, recordingIssue, uniqueIds } from './validation.js';
+import {
+  applyInterviewTurn,
+  knowledgeAnswers,
+  latestAnswer,
+  MAX_INITIAL_QUESTIONS,
+  MAX_INTERVIEW_QUESTIONS,
+} from '../src/domain/interview.js';
+import { makeId } from '../src/domain/core.js';
+import { initialInterviewPrompt, followUpInterviewPrompt } from './interviewPrompt.js';
 
 export class ApiError extends Error {
   constructor(
@@ -156,7 +172,7 @@ export async function analyze(
   const raw = await provider({
     name: 'craft_analysis',
     schema: analysisJson,
-    instructions: `${sourceInstructions} 目的は、観察と熟練者に聞かなければ分からない判断を分離することです。採取された静止画とメモだけを使い、動画全体・音声を見聞きしたとは主張しないでください。最大8区間と8質問を作成してください。各区間は0〜duration秒の範囲内で、start<=endにしてください。各質問のsegmentIdは実在する区間IDを参照してください。観察できる動き・状態のみobservationに記述し、力加減・温度・理由・合否の基準などの不明点を質問してください。limitationsには『抜き出した静止画とメモによる分析であり、動画全体や音声は解析していません。』を含めてください。`,
+    instructions: `${sourceInstructions}\n${initialInterviewPrompt}`,
     text: JSON.stringify({
       recording: {
         id: recording.id,
@@ -165,6 +181,8 @@ export async function analyze(
         duration: recording.duration,
         notes: recording.notes,
       },
+      previousQuestions: recording.analysis?.questions ?? [],
+      previousAnswers: recording.answers,
       relatedConfirmedKnowledge: context
         .filter((a) => a.status === 'published' && !a.isDemo)
         .slice(0, 6)
@@ -181,7 +199,17 @@ export async function analyze(
     ...(typeof raw === 'object' && raw !== null ? raw : {}),
     mode: 'ai',
   });
-  if (!parsed.success || parsed.data.segments.length === 0 || parsed.data.questions.length === 0)
+  if (
+    !parsed.success ||
+    parsed.data.segments.length === 0 ||
+    parsed.data.segments.length > 8 ||
+    parsed.data.questions.length > MAX_INITIAL_QUESTIONS ||
+    new Set(parsed.data.questions.map((q) => normalizeQuestion(q.text))).size !==
+      parsed.data.questions.length ||
+    parsed.data.questions.some(
+      (q) => q.followUpOf || q.review || q.skipped || q.basedOnAnswerId || q.answerQuote,
+    )
+  )
     invalidOutput();
   const issue = recordingIssue({ ...recording, answers: [], analysis: parsed.data });
   if (issue) invalidOutput();
@@ -193,6 +221,117 @@ export async function analyze(
       20,
     ),
   };
+}
+
+const normalizeQuestion = (text: string) =>
+  text
+    .normalize('NFKC')
+    .replace(/[\s、。？！?!「」]/g, '')
+    .toLowerCase();
+const followupQuestionJson = obj({ text: str, reason: str, kind, answerQuote: str });
+const followupJson = obj({
+  outcome: { type: 'string', enum: ['followup', 'enough', 'unknown', 'not_applicable'] },
+  message: str,
+  question: { anyOf: [followupQuestionJson, { type: 'null' }] },
+});
+const followupSchema = z
+  .object({
+    outcome: z.enum(['followup', 'enough', 'unknown', 'not_applicable']),
+    message: z.string().trim().min(1).max(2000),
+    question: z
+      .object({
+        text: z.string().trim().min(1).max(300),
+        reason: z.string().trim().min(1).max(2000),
+        kind: z.enum(['step', 'judgment', 'warning']),
+        answerQuote: z.string().trim().min(1).max(2000),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+
+export async function followup(
+  provider: ModelProvider,
+  recording: Recording,
+  questionId: string,
+): Promise<InterviewTurn> {
+  validRecording(recording);
+  const question = recording.analysis?.questions.find((q) => q.id === questionId);
+  const answer = latestAnswer(recording, questionId);
+  if (!question || !answer?.text.trim() || question.skipped || recording.analysis?.mode !== 'ai')
+    throw new ApiError(400, 'AIの質問に回答を保存してから続けてください。', 'INVALID_INTERVIEW');
+  if (question.review?.answerId === answer.id) {
+    return {
+      review: question.review,
+      question:
+        recording.analysis.questions.find(
+          (q) => q.followUpOf === question.id && q.basedOnAnswerId === answer.id,
+        ) ?? null,
+    };
+  }
+  if (
+    question.followUpOf ||
+    recording.analysis.questions.length >= MAX_INTERVIEW_QUESTIONS ||
+    recording.analysis.questions.some((q) => q.followUpOf === question.id)
+  )
+    return {
+      question: null,
+      review: {
+        answerId: answer.id,
+        outcome: 'enough',
+        message: 'この場面の追加質問はここまでです。残った不明点は記録から確認できます。',
+      },
+    };
+  const { frames, ...source } = recording;
+  const raw = await provider({
+    name: 'craft_interview_followup',
+    schema: followupJson,
+    instructions: `${sourceInstructions}\n${followUpInterviewPrompt}`,
+    text: JSON.stringify({
+      recording: source,
+      targetQuestion: question,
+      targetAnswer: answer,
+      latestAnswers: recording.analysis.questions.flatMap(
+        (q) => latestAnswer(recording, q.id) ?? [],
+      ),
+    }),
+    frames: frames
+      .filter((f) => {
+        const segment = recording.analysis!.segments.find((s) => s.id === question.segmentId)!;
+        return f.time >= segment.start && f.time <= segment.end;
+      })
+      .slice(0, 3),
+  });
+  const parsed = followupSchema.safeParse(raw);
+  if (!parsed.success) invalidOutput();
+  const output = parsed.data;
+  if (
+    (output.outcome === 'followup') !== !!output.question ||
+    (output.question &&
+      (!answer.text.includes(output.question.answerQuote) ||
+        recording.analysis.questions.some(
+          (q) => normalizeQuestion(q.text) === normalizeQuestion(output.question!.text),
+        )))
+  )
+    invalidOutput();
+  const turn: InterviewTurn = {
+    review: { answerId: answer.id, outcome: output.outcome, message: output.message },
+    question: output.question
+      ? {
+          ...output.question,
+          id: makeId('followup'),
+          segmentId: question.segmentId,
+          followUpOf: question.id,
+          basedOnAnswerId: answer.id,
+        }
+      : null,
+  };
+  try {
+    applyInterviewTurn(recording, questionId, turn);
+  } catch {
+    invalidOutput();
+  }
+  return turn;
 }
 
 const generatedId = z
@@ -238,7 +377,7 @@ export async function generate(
   validRecording(recording);
   if (!recording.answers.some((a) => a.text.trim()) && !recording.notes.trim())
     throw new ApiError(400, '熟練者の回答またはメモを追加してください。', 'NO_EVIDENCE');
-  const { frames: _frames, ...source } = recording;
+  const { frames: _frames, ...source } = { ...recording, answers: knowledgeAnswers(recording) };
   const raw = await provider({
     name: 'craft_knowledge_draft',
     schema: draftJson,
@@ -256,7 +395,16 @@ export async function generate(
       answerId: e.answerId ?? undefined,
     })),
   }));
-  if (!uniqueIds(claims) || claims.some((c) => claimEvidenceIssue(c, recording))) invalidOutput();
+  const eligibleIds = new Set(source.answers.map((a) => a.id));
+  if (
+    !uniqueIds(claims) ||
+    claims.some(
+      (c) =>
+        claimEvidenceIssue(c, recording) ||
+        c.evidence.some((e) => e.kind === 'answer' && !eligibleIds.has(e.answerId!)),
+    )
+  )
+    invalidOutput();
   return { title: parsed.data.title, summary: parsed.data.summary, tags: parsed.data.tags, claims };
 }
 

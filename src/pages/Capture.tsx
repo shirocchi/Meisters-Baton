@@ -23,7 +23,14 @@ import { useBaton } from '../state';
 import { Badge, Empty, Modal, PageTitle, ProgressSteps } from '../components/ui';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { createManualAnalysis, draftArticle, formatTime, makeId } from '../domain';
-import type { Analysis, Article, Claim, Recording } from '../domain/types';
+import type { Analysis, Article, Claim, Recording, InterviewTurn } from '../domain/types';
+import {
+  applyInterviewTurn,
+  isCurrentQuestion,
+  knowledgeAnswers,
+  latestAnswer,
+  questionDisposition,
+} from '../domain/interview';
 import {
   putMedia,
   getAnswerDraft,
@@ -502,13 +509,37 @@ export function InterviewPage({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [consent, setConsent] = useState(false);
+  const [interviewMessage, setInterviewMessage] = useState('');
+  const activeInterview = useRef('');
+  const interviewKey = `${id}:${auth?.token ?? ''}:${auth?.user.teamId ?? ''}:${settings.apiBaseUrl}`;
+  activeInterview.current = interviewKey;
+  useEffect(() => {
+    activeInterview.current = interviewKey;
+    return () => {
+      activeInterview.current = '';
+    };
+  }, [interviewKey]);
   const analysis = record?.analysis;
-  const questions = analysis?.questions ?? [];
+  const questions = (analysis?.questions ?? []).filter(
+    (q) => record && isCurrentQuestion(record, q),
+  );
   const question = questions[index];
+  const questionCard = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    questionCard.current?.scrollIntoView({ block: 'nearest' });
+  }, [question?.id]);
+  const disposition = record && question ? questionDisposition(record, question) : undefined;
   const stored = record?.answers
     .slice()
     .reverse()
     .find((a) => a.questionId === question?.id);
+  const resumedRecord = useRef<string | null>(null);
+  useEffect(() => {
+    if (!record?.analysis || resumedRecord.current === id) return;
+    resumedRecord.current = id;
+    const pending = questions.findIndex((q) => !q.skipped && !latestAnswer(record, q.id));
+    setIndex(pending < 0 ? questions.length : pending);
+  }, [id, record]);
   useEffect(() => {
     let disposed = false;
     setAnswer(stored?.text ?? '');
@@ -589,30 +620,130 @@ export function InterviewPage({ id }: { id: string }) {
     if (!question || !answer.trim()) return record;
     if (stored?.text === answer.trim()) return record;
     const text = answer.trim();
-    const next = {
-      ...record,
-      answers: [
-        ...record.answers,
-        {
-          id: makeId('answer'),
-          questionId: question.id,
-          text,
-          author: settings.displayName || '作業者',
-          createdAt: new Date().toISOString(),
-          source: 'text' as const,
-        },
-      ],
+    const entry = {
+      id: makeId('answer'),
+      questionId: question.id,
+      text,
+      author: settings.displayName || '作業者',
+      createdAt: new Date().toISOString(),
+      source: 'text' as const,
     };
-    await update({ answers: next.answers });
+    let next = record;
+    await mutate((d) => ({
+      ...d,
+      recordings: d.recordings.map((r) => {
+        if (r.id !== id) return r;
+        if (activeInterview.current !== interviewKey)
+          throw new Error('記録の接続先が変わりました。');
+        next = {
+          ...r,
+          updatedAt: new Date().toISOString(),
+          answers: [...r.answers, entry],
+          analysis: r.analysis && {
+            ...r.analysis,
+            questions: r.analysis.questions.map((q) =>
+              q.id === question.id ? { ...q, skipped: undefined } : q,
+            ),
+          },
+        };
+        return next;
+      }),
+    }));
     await deleteAnswerDraft(id, question.id);
     return next;
   };
-  const next = async () => {
+  const next = async (askAI = true) => {
+    let saved = false;
     try {
       setBusy(true);
+      setError('');
+      const current = await saveAnswer();
+      saved = true;
+      if (
+        askAI &&
+        question &&
+        analysis?.mode === 'ai' &&
+        auth &&
+        settings.aiConsent &&
+        !question.followUpOf &&
+        !question.skipped &&
+        question.review?.answerId !== latestAnswer(current, question.id)?.id
+      ) {
+        setInterviewMessage('回答は端末に保存しました。次に確かめる一点を考えています。');
+        const turn = await api<InterviewTurn>(settings, '/api/ai/followup', {
+          method: 'POST',
+          sessionToken: auth.token,
+          sessionTeamId: auth.user.teamId,
+          body: { recording: current, questionId: question.id },
+        });
+        if (activeInterview.current !== interviewKey) return;
+        await mutate((d) => {
+          if (activeInterview.current !== interviewKey)
+            throw new Error('記録の接続先が変わりました。');
+          return {
+            ...d,
+            recordings: d.recordings.map((r) =>
+              r.id === id
+                ? {
+                    ...applyInterviewTurn(r, question.id, turn),
+                    updatedAt: new Date().toISOString(),
+                  }
+                : r,
+            ),
+          };
+        });
+        setInterviewMessage(turn.review.message);
+      } else setInterviewMessage('回答を保存しました。');
+      setIndex(index + 1);
+    } catch (e) {
+      setInterviewMessage(
+        saved ? '回答は端末に保存されています。再試行するか、追加質問をせず先へ進めます。' : '',
+      );
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const skip = async (skipped: 'unknown' | 'not_applicable') => {
+    setBusy(true);
+    setError('');
+    try {
       await saveAnswer();
-      if (index < questions.length - 1) setIndex(index + 1);
-      else toast('回答を保存しました。Wikiの下書きに進めます。');
+      await mutate((d) => ({
+        ...d,
+        recordings: d.recordings.map((r) =>
+          r.id !== id || !r.analysis || !question
+            ? r
+            : {
+                ...r,
+                updatedAt: new Date().toISOString(),
+                analysis: {
+                  ...r.analysis,
+                  questions: r.analysis.questions.map((q) =>
+                    q.id === question.id ? { ...q, skipped } : q,
+                  ),
+                },
+              },
+        ),
+      }));
+      setInterviewMessage(
+        skipped === 'unknown'
+          ? '未確認として残しました。分かる人への確認に使えます。'
+          : '今回は該当しないと記録しました。',
+      );
+      setIndex(index + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const finishInterview = async () => {
+    setBusy(true);
+    try {
+      await saveAnswer();
+      setIndex(questions.length);
+      setInterviewMessage('ここまでの回答を保存しました。残りの問いは後で再開できます。');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -624,11 +755,28 @@ export function InterviewPage({ id }: { id: string }) {
     setError('');
     try {
       const current = await saveAnswer();
-      if (current.answers.length === 0) {
+      if (knowledgeAnswers(current).length === 0 && !(useAI && current.notes.trim())) {
         setError('判断を一つ以上答えてから、Wikiにまとめてください。');
         return;
       }
-      let article = draftArticle(current);
+      let article: Article = knowledgeAnswers(current).length
+        ? draftArticle(current)
+        : {
+            id: makeId('article'),
+            recordingId: current.id,
+            title: current.title,
+            category: current.category,
+            summary: '',
+            tags: [],
+            claims: [],
+            author: current.author,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            status: 'draft',
+            isDemo: current.isDemo,
+            revisions: [],
+            bookmarked: false,
+          };
       if (useAI) {
         if (!settings.aiConsent) {
           setError('先に工房の設定でAIへの送信を有効にしてください。');
@@ -789,10 +937,10 @@ export function InterviewPage({ id }: { id: string }) {
                   <Sparkles size={21} />
                 </span>
                 <div>
-                  <h2>そのとき、何を考えましたか。</h2>
+                  <h2>後輩が同じ場面で判断するために</h2>
                   <p>
                     {analysis.mode === 'ai'
-                      ? 'AIが見つけた、映像だけでは分からないこと'
+                      ? 'まず最大3問。回答に応じて、一点だけ掘り下げます。'
                       : analysis.mode === 'demo'
                         ? '用意したサンプル質問に答えて体験できます'
                         : 'あなたの判断を残すための、3つの問い'}
@@ -815,6 +963,7 @@ export function InterviewPage({ id }: { id: string }) {
                 {questions.map((q, i) => (
                   <button
                     key={q.id}
+                    disabled={busy}
                     onClick={() => {
                       if (answer.trim() !== stored?.text?.trim() && answer.trim()) {
                         void saveAnswer()
@@ -822,7 +971,7 @@ export function InterviewPage({ id }: { id: string }) {
                           .catch((e) => setError(e.message));
                       } else setIndex(i);
                     }}
-                    aria-label={`質問${i + 1}`}
+                    aria-label={`質問${i + 1}${questionDisposition(record, q) ? '（保留）' : ''}`}
                     className={
                       i === index
                         ? 'active'
@@ -831,7 +980,9 @@ export function InterviewPage({ id }: { id: string }) {
                           : ''
                     }
                   >
-                    {record.answers.some((a) => a.questionId === q.id) ? (
+                    {questionDisposition(record, q) ? (
+                      '―'
+                    ) : record.answers.some((a) => a.questionId === q.id) ? (
                       <Check size={15} />
                     ) : (
                       i + 1
@@ -839,9 +990,33 @@ export function InterviewPage({ id }: { id: string }) {
                   </button>
                 ))}
               </div>
+              {interviewMessage && (
+                <p className="interview-feedback" role="status">
+                  {interviewMessage}
+                </p>
+              )}
+              {!question && (
+                <div className="question-card">
+                  <h3>今回の聞き取りはここまで</h3>
+                  <p>上の番号から聞き取りを再開できます。ここまでの回答で下書きも作れます。</p>
+                </div>
+              )}
               {question && (
                 <>
-                  <div className="question-card">
+                  <div className="question-card" ref={questionCard}>
+                    {question.followUpOf && (
+                      <>
+                        <span className="question-type">回答から、もう一点</span>
+                        <blockquote>「{question.answerQuote}」</blockquote>
+                      </>
+                    )}
+                    {disposition && (
+                      <p>
+                        {disposition === 'unknown'
+                          ? '未確認として保留中です。分かったら回答できます。'
+                          : '今回は該当しないと記録されています。'}
+                      </p>
+                    )}
                     <span className="question-type">
                       {question.kind === 'judgment'
                         ? '判断基準'
@@ -872,7 +1047,7 @@ export function InterviewPage({ id }: { id: string }) {
                   <label className="answer-label">
                     あなたの言葉で
                     <textarea
-                      rows={6}
+                      rows={4}
                       value={answer}
                       maxLength={10000}
                       onChange={(e) => {
@@ -913,8 +1088,46 @@ export function InterviewPage({ id }: { id: string }) {
                       disabled={busy || !answer.trim()}
                       onClick={() => void next()}
                     >
-                      {index < questions.length - 1 ? '回答を保存して次へ' : '回答を保存'}
+                      {analysis.mode === 'ai' && auth && settings.aiConsent && !question.followUpOf
+                        ? busy
+                          ? '回答を確認中…'
+                          : '回答を保存して続ける'
+                        : index < questions.length - 1
+                          ? '回答を保存して次へ'
+                          : '回答を保存'}
                       <ArrowRight size={17} />
+                    </button>
+                  </div>
+                  <div className="interview-exits">
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void skip('unknown')}
+                    >
+                      分からない・覚えていない
+                    </button>
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void skip('not_applicable')}
+                    >
+                      今回は該当しない
+                    </button>
+                    {analysis.mode === 'ai' && (
+                      <button
+                        className="text-button"
+                        disabled={busy || !answer.trim()}
+                        onClick={() => void next(false)}
+                      >
+                        追加質問をせず先へ
+                      </button>
+                    )}
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void finishInterview()}
+                    >
+                      ここまでで聞き取りを終える
                     </button>
                   </div>
                 </>

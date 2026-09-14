@@ -2,7 +2,7 @@ import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import { z } from 'zod';
 import { resolve } from 'node:path';
-import { analyze, generate, search, ApiError, type ModelProvider } from './ai';
+import { analyze, followup, generate, search, ApiError, type ModelProvider } from './ai';
 import { articleSchema, recordingSchema } from './validation';
 import { createReader } from './wikiContext';
 import { processVideoHandler } from './processVideo';
@@ -53,7 +53,7 @@ export function createLaptopGateway(options: {
     processVideoHandler(options),
   );
   const usage = new Map<string, { hour: number; count: number }>();
-  const endpoints = ['analyze', 'generate', 'search'] as const;
+  const endpoints = ['analyze', 'followup', 'generate', 'search'] as const;
   for (const action of endpoints)
     app.post(`/api/ai/${action}`, async (req, res) => {
       const token = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(req.get('authorization') ?? '')?.[1];
@@ -86,15 +86,26 @@ export function createLaptopGateway(options: {
                 context: z.array(articleSchema).max(20).default([]),
               })
               .strict()
-          : action === 'generate'
-            ? z.object({ recording: recordingSchema }).strict()
-            : z.object({ query: z.string().trim().min(1).max(1000) }).strict();
+          : action === 'followup'
+            ? z
+                .object({ recording: recordingSchema, questionId: z.string().min(1).max(160) })
+                .strict()
+            : action === 'generate'
+              ? z.object({ recording: recordingSchema }).strict()
+              : z.object({ query: z.string().trim().min(1).max(1000) }).strict();
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) throw new ApiError(400, '入力を確認してください。', 'INVALID_INPUT');
       usage.set(data.userId, { hour, count: (current?.count ?? 0) + 1 });
       const input = parsed.data;
       if (action === 'search' && 'query' in input)
         res.json(await search(options.provider, input.query, data.team?.articles ?? []));
+      else if (
+        action === 'followup' &&
+        'recording' in input &&
+        'questionId' in input &&
+        typeof input.questionId === 'string'
+      )
+        res.json(await followup(options.provider, input.recording, input.questionId));
       else if (action === 'analyze' && 'recording' in input)
         res.json(
           await analyze(

@@ -14,7 +14,15 @@ import cors from 'cors';
 import multer from 'multer';
 import { z } from 'zod';
 import type { AuthUser, SyncEnvelope, TeamData } from '../src/domain/types.js';
-import { analyze, ApiError, generate, openAIProvider, search, type ModelProvider } from './ai.js';
+import {
+  analyze,
+  ApiError,
+  followup,
+  generate,
+  openAIProvider,
+  search,
+  type ModelProvider,
+} from './ai.js';
 import {
   articleSchema,
   loginSchema,
@@ -603,6 +611,13 @@ export function createApp(options: AppOptions = {}) {
       req.body,
     );
     res.json(await analyze(provider!, recording, context));
+  });
+  app.post('/api/ai/followup', async (req, res) => {
+    const { recording, questionId } = parse(
+      z.object({ recording: recordingSchema, questionId: z.string().min(1).max(160) }).strict(),
+      req.body,
+    );
+    res.json(await followup(provider!, recording, questionId));
   });
   app.post('/api/ai/generate', async (req, res) => {
     const { recording } = parse(z.object({ recording: recordingSchema }).strict(), req.body);
